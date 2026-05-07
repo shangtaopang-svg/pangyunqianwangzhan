@@ -2790,7 +2790,53 @@
             }
 
             .bar-wrapper {
-                grid-template-columns: 1fr;
+                display: flex;
+                gap: 14px;
+                overflow-x: auto;
+                padding-bottom: 8px;
+                scroll-snap-type: x mandatory;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-x: contain;
+            }
+
+            .bar-container {
+                min-width: 260px;
+                max-width: 260px;
+                min-height: 230px;
+                scroll-snap-align: start;
+            }
+
+            .growth-bars {
+                min-height: 160px;
+                padding-top: 18px;
+            }
+
+            .bar {
+                width: 30px;
+                border-radius: 12px 12px 6px 6px;
+            }
+
+            .bar-value {
+                font-size: 0.78rem;
+                top: -22px;
+            }
+
+            .growth-card-note {
+                font-size: 0.78rem;
+            }
+
+            .filter-bar {
+                gap: 10px;
+                justify-content: flex-start;
+            }
+
+            .filter-btn {
+                padding: 8px 12px;
+                font-size: 0.78rem;
+                max-width: calc(50% - 10px);
+                white-space: normal;
+                text-align: center;
+                line-height: 1.2;
             }
 
             .hero-countdown {
@@ -3073,9 +3119,9 @@
 
         <section class="section" id="photos">
             <div class="section-header">
-                <div class="section-label" data-i18n="photos.label">Photo Gallery</div>
-                <h2 class="section-title" data-i18n="photos.title">照片墙</h2>
-                <p class="section-desc" data-i18n="photos.desc">记录生活的每一个精彩瞬间</p>
+                <div class="section-label" data-i18n="photos.label">Moments</div>
+                <h2 class="section-title" data-i18n="photos.title">拾光集</h2>
+                <p class="section-desc" data-i18n="photos.desc">把成长的每一帧都珍藏</p>
             </div>
             <div class="filter-bar" id="filterBar"></div>
             <div class="photo-grid" id="photoGrid"></div>
@@ -3265,7 +3311,7 @@
                 siteName: '童迹',
                 'nav.home': '首页',
                 'nav.family': '家庭成员',
-                'nav.photos': '照片墙',
+                'nav.photos': '拾光集',
                 'nav.videos': '视频',
                 'nav.milestones': '成长里程碑',
                 'nav.growth': '成长标尺',
@@ -3306,9 +3352,9 @@
                 'family.label': 'Family Members',
                 'family.title': '家庭成员',
                 'family.desc': '我们最珍贵的宝藏',
-                'photos.label': 'Photo Gallery',
-                'photos.title': '照片墙',
-                'photos.desc': '记录生活的每一个精彩瞬间',
+                'photos.label': '拾光集',
+                'photos.title': '拾光集',
+                'photos.desc': '把成长的每一帧都珍藏',
                 'photos.all': '全部',
                 'videos.label': 'Video Gallery',
                 'videos.title': '视频集锦',
@@ -3371,7 +3417,7 @@
                 siteName: 'Childhood Footprints',
                 'nav.home': 'Home',
                 'nav.family': 'Family',
-                'nav.photos': 'Photos',
+                'nav.photos': 'Moments',
                 'nav.videos': 'Videos',
                 'nav.milestones': 'Milestones',
                 'nav.growth': 'Growth',
@@ -3412,9 +3458,9 @@
                 'family.label': 'Family Members',
                 'family.title': 'Family',
                 'family.desc': 'Our Most Precious Treasure',
-                'photos.label': 'Photo Gallery',
-                'photos.title': 'Photo Wall',
-                'photos.desc': 'Capturing every wonderful moment',
+                'photos.label': 'Moments',
+                'photos.title': 'Moments',
+                'photos.desc': 'Collecting every frame of growth',
                 'photos.all': 'All',
                 'videos.label': 'Video Gallery',
                 'videos.title': 'Videos',
@@ -3478,11 +3524,11 @@
             ],
             photos: [
                 { id: 1, title: '海边日落', date: '2024-07-15', category: 'travel', desc: '全家在海边看日落', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600' },
-                { id: 2, title: '生日派对', date: '2024-06-01', category: 'celebration', desc: '小亮的7岁生日', image: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600' },
+                { id: 2, title: '生日派对', date: '2024-06-01', category: 'birthday', desc: '小亮的7岁生日', image: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600' },
                 { id: 3, title: '周末野餐', date: '2024-05-20', category: 'daily', desc: '公园里的温馨时光', image: 'https://images.unsplash.com/photo-1528164344705-47542687000d?w=600' },
-                { id: 4, title: '春节团聚', date: '2024-02-10', category: 'holiday', desc: '全家人一起过年', image: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4d4d"/><stop offset="1" stop-color="#ffa94d"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/><circle cx="730" cy="140" r="120" fill="rgba(255,255,255,0.18)"/><circle cx="780" cy="220" r="46" fill="rgba(255,255,255,0.12)"/><text x="56" y="128" font-size="64" fill="rgba(255,255,255,0.92)" font-family="Noto Sans SC, Arial, sans-serif">春节团聚</text><text x="58" y="192" font-size="28" fill="rgba(255,255,255,0.86)" font-family="Inter, Arial, sans-serif">Family Reunion</text></svg>`) },
+                { id: 4, title: '春节团聚', date: '2024-02-10', category: 'daily', desc: '全家人一起过年', image: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4d4d"/><stop offset="1" stop-color="#ffa94d"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/><circle cx="730" cy="140" r="120" fill="rgba(255,255,255,0.18)"/><circle cx="780" cy="220" r="46" fill="rgba(255,255,255,0.12)"/><text x="56" y="128" font-size="64" fill="rgba(255,255,255,0.92)" font-family="Noto Sans SC, Arial, sans-serif">春节团聚</text><text x="58" y="192" font-size="28" fill="rgba(255,255,255,0.86)" font-family="Inter, Arial, sans-serif">Family Reunion</text></svg>`) },
                 { id: 5, title: '登山探险', date: '2024-04-22', category: 'travel', desc: '征服高山', image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=600' },
-                { id: 6, title: '儿童节快乐', date: '2024-06-01', category: 'celebration', desc: '孩子们的节日', image: 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=600' }
+                { id: 6, title: '儿童节快乐', date: '2024-06-01', category: 'birthday', desc: '孩子们的节日', image: 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=600' }
             ],
             videos: [
                 { id: 1, title: '第一次上学', date: '2023-09-01', thumbnail: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=250&fit=crop' },
@@ -3541,6 +3587,7 @@
 
         let currentLang = localStorage.getItem('lang') || 'zh';
         let appData = normalizeAppData(JSON.parse(localStorage.getItem('appData')) || {});
+        const APP_VERSION = '20260507-1';
         const ADMIN_PASSWORD_HASH = '05afc476279950da10fe7c4586de091dfe044d61520caa8bfaf18ca3c7a9a3e0';
         let adminVerified = false;
 
@@ -3553,12 +3600,46 @@
         let mediaObjectUrlCache = new Map();
         let mediaDBPromise = null;
 
+        const PHOTO_CATEGORIES = [
+            { key: 'baby', zh: '初来人间 · 怀中宝贝', en: 'New to the World' },
+            { key: 'kindergarten', zh: '小小世界 · 幼儿园时光', en: 'Kindergarten Days' },
+            { key: 'school', zh: '背着书包 · 上学啦', en: 'Off to School' },
+            { key: 'daily', zh: '闪光日常 · 平凡又特别', en: 'Shining Daily Life' },
+            { key: 'birthday', zh: '一年一记 · 生日乐章', en: 'Birthday Chapters' },
+            { key: 'travel', zh: '山海远行 · 旅行足迹', en: 'Travel Footprints' }
+        ];
+
+        function getPhotoCategoryLabel(key) {
+            const k = String(key || '');
+            if (k === 'all') return currentLang === 'zh' ? '全部' : 'All';
+            const item = PHOTO_CATEGORIES.find(c => c.key === k);
+            if (!item) return currentLang === 'zh' ? '未分类' : 'Uncategorized';
+            return currentLang === 'zh' ? item.zh : item.en;
+        }
+
         function cacheMediaObjectUrl(key, url) {
             const prev = mediaObjectUrlCache.get(key);
             if (prev && prev !== url) {
                 URL.revokeObjectURL(prev);
             }
             mediaObjectUrlCache.set(key, url);
+        }
+
+        function isWeChatBrowser() {
+            return /MicroMessenger/i.test(String(navigator.userAgent || ''));
+        }
+
+        function ensureWeChatFreshUrl() {
+            if (!isWeChatBrowser()) return false;
+            try {
+                const url = new URL(window.location.href);
+                if (url.searchParams.get('v') === APP_VERSION) return false;
+                url.searchParams.set('v', APP_VERSION);
+                window.location.replace(url.toString());
+                return true;
+            } catch (e) {
+                return false;
+            }
         }
 
         function imgTagAttrs(src) {
@@ -3719,6 +3800,19 @@
             if (!merged.weatherEffect) merged.weatherEffect = 'none';
 
             if (!Array.isArray(merged.photos)) merged.photos = DEFAULT_APP_DATA.photos;
+            const mapPhotoCategory = (c) => {
+                const k = String(c || '');
+                if (k === 'celebration') return 'birthday';
+                if (k === 'holiday') return 'daily';
+                if (k === 'travel') return 'travel';
+                if (k === 'daily') return 'daily';
+                if (k === 'baby') return 'baby';
+                if (k === 'kindergarten') return 'kindergarten';
+                if (k === 'school') return 'school';
+                if (k === 'birthday') return 'birthday';
+                return 'daily';
+            };
+            merged.photos = merged.photos.map((p) => ({ ...p, category: mapPhotoCategory(p?.category) }));
             if (!Array.isArray(merged.videos)) merged.videos = DEFAULT_APP_DATA.videos;
             if (!Array.isArray(merged.milestones)) merged.milestones = DEFAULT_APP_DATA.milestones;
             if (!Array.isArray(merged.growthRecords)) merged.growthRecords = DEFAULT_APP_DATA.growthRecords;
@@ -3974,10 +4068,7 @@
         function renderFilterBar() {
             const categories = [
                 { key: 'all', label: currentLang === 'zh' ? '全部' : 'All' },
-                { key: 'travel', label: currentLang === 'zh' ? '旅行' : 'Travel' },
-                { key: 'daily', label: currentLang === 'zh' ? '日常' : 'Daily' },
-                { key: 'holiday', label: currentLang === 'zh' ? '节日' : 'Holiday' },
-                { key: 'celebration', label: currentLang === 'zh' ? '庆典' : 'Celebration' }
+                ...PHOTO_CATEGORIES.map(c => ({ key: c.key, label: currentLang === 'zh' ? c.zh : c.en }))
             ];
             const bar = document.getElementById('filterBar');
             bar.innerHTML = categories.map(c => `
@@ -4183,10 +4274,7 @@
                     </div>
                     <div class="admin-form-row">
                         <select id="adminPhotoCategory">
-                            <option value="travel">${currentLang === 'zh' ? '旅行' : 'Travel'}</option>
-                            <option value="daily">${currentLang === 'zh' ? '日常' : 'Daily'}</option>
-                            <option value="holiday">${currentLang === 'zh' ? '节日' : 'Holiday'}</option>
-                            <option value="celebration">${currentLang === 'zh' ? '庆典' : 'Celebration'}</option>
+                            ${PHOTO_CATEGORIES.map(c => `<option value="${c.key}">${currentLang === 'zh' ? c.zh : c.en}</option>`).join('')}
                         </select>
                         <input type="text" id="adminPhotoDesc" placeholder="${currentLang === 'zh' ? '描述' : 'Description'}">
                     </div>
@@ -4209,7 +4297,7 @@
                             <img ${imgTagAttrs(p.image)} alt="${p.title}">
                             <div class="admin-item-info">
                                 <h5>${p.title}</h5>
-                                <p>${p.date} | ${p.category}</p>
+                                <p>${p.date} | ${getPhotoCategoryLabel(p.category)}</p>
                             </div>
                             <div class="admin-item-actions">
                                 <button onclick="deletePhoto(${p.id})"><i class="fas fa-trash"></i></button>
@@ -6581,6 +6669,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            if (ensureWeChatFreshUrl()) return;
             init();
             initWeather();
             initWeatherEffects();
