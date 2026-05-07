@@ -2244,6 +2244,32 @@
             gap: 12px;
         }
 
+        .admin-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-logout {
+            background: rgba(251, 146, 60, 0.12);
+            border: 1px solid rgba(251, 146, 60, 0.35);
+            color: var(--orange);
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s ease;
+        }
+
+        .admin-logout:hover {
+            background: rgba(251, 146, 60, 0.22);
+            border-color: rgba(251, 146, 60, 0.55);
+        }
+
         .admin-close {
             background: var(--dark-light);
             border: 1px solid var(--border);
@@ -3197,7 +3223,12 @@
         <div class="admin-panel">
             <div class="admin-header">
                 <h2><i class="fas fa-cog"></i> <span data-i18n="admin.title">管理后台</span></h2>
-                <button class="admin-close" id="adminClose">&times;</button>
+                    <div class="admin-header-actions">
+                        <button class="admin-logout" id="adminLogout" type="button" title="退出登录">
+                            <i class="fas fa-right-from-bracket"></i>
+                        </button>
+                        <button class="admin-close" id="adminClose" type="button">&times;</button>
+                    </div>
             </div>
             <div class="admin-tabs">
                 <button class="admin-tab active" data-tab="photos" data-i18n="nav.photos">照片</button>
@@ -4679,6 +4710,8 @@
             document.getElementById('langSwitch').addEventListener('click', toggleLanguage);
             document.getElementById('adminBtn').addEventListener('click', openAdmin);
             document.getElementById('adminClose').addEventListener('click', closeAdmin);
+            const adminLogoutBtn = document.getElementById('adminLogout');
+            if (adminLogoutBtn) adminLogoutBtn.addEventListener('click', logoutAdmin);
             document.getElementById('adminLoginClose').addEventListener('click', closeAdmin);
             document.getElementById('adminLoginCancel').addEventListener('click', closeAdmin);
             document.getElementById('adminLoginSubmit').addEventListener('click', verifyAdminPassword);
@@ -4850,6 +4883,24 @@
             document.getElementById('adminLoginCard').style.display = 'none';
             overlay.querySelector('.admin-panel').style.display = 'block';
             showToast(currentLang === 'zh' ? '验证成功，已进入后台' : 'Verified, admin opened');
+        }
+
+        function logoutAdmin() {
+            adminVerified = false;
+            localStorage.removeItem(ADMIN_SESSION_KEY);
+            const overlay = document.getElementById('adminOverlay');
+            if (overlay && overlay.classList.contains('active')) {
+                const loginCard = document.getElementById('adminLoginCard');
+                const panel = overlay.querySelector('.admin-panel');
+                loginCard.style.display = 'block';
+                panel.style.display = 'none';
+                const input = document.getElementById('adminPasswordInput');
+                if (input) {
+                    input.value = '';
+                    setTimeout(() => input.focus(), 30);
+                }
+            }
+            showToast(currentLang === 'zh' ? '已退出后台，需要重新验证' : 'Logged out. Please verify again.');
         }
 
         function openSearch() {
