@@ -239,6 +239,10 @@
             transition: all 0.3s ease;
         }
 
+        body.admin-disabled .admin-btn {
+            display: none;
+        }
+
         .admin-btn:hover {
             transform: scale(1.05);
             box-shadow: 0 5px 15px rgba(251, 146, 60, 0.3);
@@ -2658,6 +2662,10 @@
                 padding: 0 14px;
             }
 
+            .admin-btn {
+                display: none;
+            }
+
             .hero-calendar {
                 display: none;
             }
@@ -3544,10 +3552,10 @@
                 { id: 6, icon: '🏆', title: '获得奖状', age: '6岁' }
             ],
             growthRecords: [
-                { id: 1, date: '2024-01', height: '125', weight: '24', note: '新年测量', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' },
-                { id: 2, date: '2023-09', height: '120', weight: '22', note: '开学季', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' },
-                { id: 3, date: '2023-06', height: '115', weight: '20', note: '夏季记录', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' },
-                { id: 4, date: '2023-01', height: '108', weight: '18', note: '新年测量', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' }
+                { id: 1, date: '2024-01-01', height: '125', weight: '24', note: '新年测量', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' },
+                { id: 2, date: '2023-09-01', height: '120', weight: '22', note: '开学季', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' },
+                { id: 3, date: '2023-06-01', height: '115', weight: '20', note: '夏季记录', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' },
+                { id: 4, date: '2023-01-01', height: '108', weight: '18', note: '新年测量', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' }
             ],
             honors: [
                 { id: 1, icon: '🏆', title: '三好学生', award: '校级荣誉', date: '2024-01', image: 'https://images.unsplash.com/photo-1532619675605-1ede6c2ed2b0?w=400&h=200&fit=crop' },
@@ -3640,6 +3648,16 @@
             } catch (e) {
                 return false;
             }
+        }
+
+        function isAdminDisabledOnMobile() {
+            const isSmall = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+            const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+            const ua = String(navigator.userAgent || '');
+            const isIpadUa = /iPad/i.test(ua);
+            const isIpadOs = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+            const isIpad = isIpadUa || isIpadOs;
+            return Boolean(isSmall || isCoarse || isIpad);
         }
 
         function imgTagAttrs(src) {
@@ -4384,7 +4402,7 @@
                 <div class="admin-form">
                     <h4><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加成长记录' : 'Add Growth Record'}</h4>
                     <div class="admin-form-row">
-                        <input type="month" id="adminGrowthDate">
+                        <input type="date" id="adminGrowthDate">
                         <input type="text" id="adminGrowthHeight" placeholder="${currentLang === 'zh' ? '身高(cm)' : 'Height(cm)'}">
                         <input type="text" id="adminGrowthWeight" placeholder="${currentLang === 'zh' ? '体重(kg)' : 'Weight(kg)'}">
                     </div>
@@ -4795,7 +4813,13 @@
 
             document.getElementById('themeBtn').addEventListener('click', toggleTheme);
             document.getElementById('langSwitch').addEventListener('click', toggleLanguage);
-            document.getElementById('adminBtn').addEventListener('click', openAdmin);
+            document.getElementById('adminBtn').addEventListener('click', () => {
+                if (isAdminDisabledOnMobile()) {
+                    showToast(currentLang === 'zh' ? '请在电脑端打开管理后台' : 'Please use a desktop to manage');
+                    return;
+                }
+                openAdmin();
+            });
             document.getElementById('adminClose').addEventListener('click', closeAdmin);
             const adminLogoutBtn = document.getElementById('adminLogout');
             if (adminLogoutBtn) adminLogoutBtn.addEventListener('click', logoutAdmin);
@@ -4911,6 +4935,10 @@
         }
 
         function openAdmin() {
+            if (isAdminDisabledOnMobile()) {
+                showToast(currentLang === 'zh' ? '请在电脑端打开管理后台' : 'Please use a desktop to manage');
+                return;
+            }
             const overlay = document.getElementById('adminOverlay');
             const loginCard = document.getElementById('adminLoginCard');
             const panel = overlay.querySelector('.admin-panel');
@@ -5376,6 +5404,7 @@
             const weight = document.getElementById('adminGrowthWeight').value.trim();
             const note = document.getElementById('adminGrowthNote').value.trim();
             const image = document.getElementById('adminGrowthImage').value.trim();
+            if (!date) { showToast(currentLang === 'zh' ? '请选择日期（年月日）' : 'Please select a date (YYYY-MM-DD)'); return; }
             if (!height || !weight) { showToast(currentLang === 'zh' ? '请填写身高和体重' : 'Please fill height and weight'); return; }
             appData.growthRecords.push({ id: Date.now(), date: date || '', height, weight, note: note || '', image: image || 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' });
             saveData();
@@ -6670,6 +6699,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             if (ensureWeChatFreshUrl()) return;
+            if (isAdminDisabledOnMobile()) document.body.classList.add('admin-disabled');
             init();
             initWeather();
             initWeatherEffects();
