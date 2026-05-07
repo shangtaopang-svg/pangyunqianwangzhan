@@ -2132,6 +2132,93 @@
             display: block;
         }
 
+        .admin-login-card {
+            max-width: 440px;
+            margin: 10vh auto;
+            background: var(--dark-card);
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid var(--border);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        .admin-login-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .admin-login-header h3 {
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-login-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 18px;
+        }
+
+        .admin-login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .admin-login-form input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--dark);
+            color: var(--text);
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .admin-login-form input:focus {
+            border-color: var(--orange);
+        }
+
+        .admin-login-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .admin-login-submit,
+        .admin-login-cancel {
+            flex: 1;
+            min-height: 44px;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .admin-login-submit {
+            border: none;
+            background: linear-gradient(135deg, var(--orange), var(--orange-light));
+            color: #fff;
+        }
+
+        .admin-login-cancel {
+            border: 1px solid var(--border);
+            background: var(--dark-light);
+            color: var(--text);
+        }
+
+        .admin-login-hint {
+            margin-top: 14px;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+        }
+
         .admin-panel {
             max-width: 1100px;
             margin: 40px auto;
@@ -2636,6 +2723,16 @@
                 padding: 20px;
             }
 
+            .admin-login-card {
+                margin: 80px 16px 16px;
+                padding: 22px 18px;
+                border-radius: 18px;
+            }
+
+            .admin-login-actions {
+                flex-direction: column;
+            }
+
             .admin-form {
                 padding: 18px;
             }
@@ -3082,6 +3179,21 @@
     </div>
 
     <div class="admin-overlay" id="adminOverlay">
+        <div class="admin-login-card" id="adminLoginCard">
+            <div class="admin-login-header">
+                <h3><i class="fas fa-lock"></i> <span data-i18n="admin.loginTitle">后台验证</span></h3>
+                <button class="admin-close" id="adminLoginClose" type="button">&times;</button>
+            </div>
+            <p class="admin-login-desc" data-i18n="admin.loginDesc">请输入管理密码，验证通过后才能进入后台编辑内容。</p>
+            <div class="admin-login-form">
+                <input type="password" id="adminPasswordInput" data-i18n-placeholder="admin.passwordPlaceholder" placeholder="请输入管理密码">
+                <div class="admin-login-actions">
+                    <button class="admin-login-submit" id="adminLoginSubmit" type="button" data-i18n="admin.loginSubmit">进入后台</button>
+                    <button class="admin-login-cancel" id="adminLoginCancel" type="button" data-i18n="admin.loginCancel">取消</button>
+                </div>
+            </div>
+            <p class="admin-login-hint" data-i18n="admin.loginHint">提示：本页面只做前端密码保护，适合家庭私用。</p>
+        </div>
         <div class="admin-panel">
             <div class="admin-header">
                 <h2><i class="fas fa-cog"></i> <span data-i18n="admin.title">管理后台</span></h2>
@@ -3132,6 +3244,12 @@
                 'nav.messages': '留言',
                 'admin.btn': '管理',
                 'admin.title': '管理后台',
+                'admin.loginTitle': '后台验证',
+                'admin.loginDesc': '请输入管理密码，验证通过后才能进入后台编辑内容。',
+                'admin.passwordPlaceholder': '请输入管理密码',
+                'admin.loginSubmit': '进入后台',
+                'admin.loginCancel': '取消',
+                'admin.loginHint': '提示：本页面只做前端密码保护，适合家庭私用。',
                 'admin.music': '音乐',
                 'admin.diaries': '童迹',
                 'admin.messages': '留言',
@@ -3232,6 +3350,12 @@
                 'nav.messages': 'Messages',
                 'admin.btn': 'Admin',
                 'admin.title': 'Admin Panel',
+                'admin.loginTitle': 'Admin Verification',
+                'admin.loginDesc': 'Enter the admin password before editing site content.',
+                'admin.passwordPlaceholder': 'Enter admin password',
+                'admin.loginSubmit': 'Enter Admin',
+                'admin.loginCancel': 'Cancel',
+                'admin.loginHint': 'Note: this is client-side password protection for private family use.',
                 'admin.music': 'Music',
                 'admin.diaries': 'Footprints',
                 'admin.messages': 'Messages',
@@ -3386,6 +3510,9 @@
 
         let currentLang = localStorage.getItem('lang') || 'zh';
         let appData = normalizeAppData(JSON.parse(localStorage.getItem('appData')) || {});
+        const ADMIN_PASSWORD_HASH = '05afc476279950da10fe7c4586de091dfe044d61520caa8bfaf18ca3c7a9a3e0';
+        const ADMIN_SESSION_KEY = 'adminVerified';
+        let adminVerified = localStorage.getItem(ADMIN_SESSION_KEY) === 'true';
 
         let currentPhotoIndex = 0;
         let currentFilter = 'all';
@@ -4552,9 +4679,18 @@
             document.getElementById('langSwitch').addEventListener('click', toggleLanguage);
             document.getElementById('adminBtn').addEventListener('click', openAdmin);
             document.getElementById('adminClose').addEventListener('click', closeAdmin);
+            document.getElementById('adminLoginClose').addEventListener('click', closeAdmin);
+            document.getElementById('adminLoginCancel').addEventListener('click', closeAdmin);
+            document.getElementById('adminLoginSubmit').addEventListener('click', verifyAdminPassword);
             document.getElementById('adminOverlay').addEventListener('click', (e) => {
                 if (e.target.id === 'adminOverlay') closeAdmin();
             });
+            const adminPasswordInput = document.getElementById('adminPasswordInput');
+            if (adminPasswordInput) {
+                adminPasswordInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') verifyAdminPassword();
+                });
+            }
 
             document.querySelectorAll('.admin-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -4655,13 +4791,65 @@
         }
 
         function openAdmin() {
-            document.getElementById('adminOverlay').classList.add('active');
+            const overlay = document.getElementById('adminOverlay');
+            const loginCard = document.getElementById('adminLoginCard');
+            const panel = overlay.querySelector('.admin-panel');
+            overlay.classList.add('active');
+            if (adminVerified) {
+                loginCard.style.display = 'none';
+                panel.style.display = 'block';
+            } else {
+                loginCard.style.display = 'block';
+                panel.style.display = 'none';
+                const input = document.getElementById('adminPasswordInput');
+                if (input) {
+                    input.value = '';
+                    setTimeout(() => input.focus(), 30);
+                }
+            }
             document.body.style.overflow = 'hidden';
         }
 
         function closeAdmin() {
-            document.getElementById('adminOverlay').classList.remove('active');
+            const overlay = document.getElementById('adminOverlay');
+            const loginCard = document.getElementById('adminLoginCard');
+            const panel = overlay.querySelector('.admin-panel');
+            overlay.classList.remove('active');
+            loginCard.style.display = 'none';
+            panel.style.display = 'block';
             document.body.style.overflow = '';
+        }
+
+        async function sha256Hex(text) {
+            const data = new TextEncoder().encode(text);
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function verifyAdminPassword() {
+            const input = document.getElementById('adminPasswordInput');
+            const password = (input?.value || '').trim();
+            if (!password) {
+                showToast(currentLang === 'zh' ? '请输入管理密码' : 'Please enter the admin password');
+                return;
+            }
+
+            const hash = await sha256Hex(password);
+            if (hash !== ADMIN_PASSWORD_HASH) {
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+                showToast(currentLang === 'zh' ? '密码错误，无法进入后台' : 'Incorrect password');
+                return;
+            }
+
+            adminVerified = true;
+            localStorage.setItem(ADMIN_SESSION_KEY, 'true');
+            const overlay = document.getElementById('adminOverlay');
+            document.getElementById('adminLoginCard').style.display = 'none';
+            overlay.querySelector('.admin-panel').style.display = 'block';
+            showToast(currentLang === 'zh' ? '验证成功，已进入后台' : 'Verified, admin opened');
         }
 
         function openSearch() {
