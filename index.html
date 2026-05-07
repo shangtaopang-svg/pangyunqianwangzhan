@@ -49,6 +49,12 @@
             scroll-behavior: smooth;
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+        }
+
         body {
             font-family: 'Noto Sans SC', 'Inter', -apple-system, sans-serif;
             background: var(--dark);
@@ -56,6 +62,27 @@
             line-height: 1.6;
             overflow-x: hidden;
             transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        body.nav-open {
+            overflow: hidden;
+        }
+
+        .nav-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 900;
+        }
+
+        body.nav-open .nav-backdrop {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .smooth-scroll-container {
@@ -217,7 +244,46 @@
             box-shadow: 0 5px 15px rgba(251, 146, 60, 0.3);
         }
 
+        @media (hover: hover) and (pointer: fine) {
+            .nav-link:hover {
+                color: var(--text);
+            }
+
+            .nav-link:hover::after {
+                width: 100%;
+            }
+
+            .nav-btn:hover {
+                background: var(--dark-lighter);
+                border-color: var(--orange);
+            }
+
+            .lang-switch:hover {
+                background: var(--dark-lighter);
+                border-color: var(--cyan);
+            }
+
+            .admin-btn:hover {
+                transform: scale(1.05);
+                box-shadow: 0 5px 15px rgba(251, 146, 60, 0.3);
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .nav-link:hover::after {
+                width: 0;
+            }
+
+            .nav-btn:hover,
+            .lang-switch:hover,
+            .admin-btn:hover {
+                transform: none;
+                box-shadow: none;
+            }
+        }
+
         .hero {
+            min-height: 100vh;
             height: 100vh;
             position: relative;
             display: flex;
@@ -421,6 +487,11 @@
             .swim-text span { animation: none; }
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            .nav-logo-dot { animation: none; }
+            .scroll-indicator { animation: none; }
+        }
+
         .hero-stats {
             display: flex;
             justify-content: center;
@@ -582,6 +653,7 @@
             padding: 100px 40px;
             max-width: 1400px;
             margin: 0 auto;
+            scroll-margin-top: 84px;
         }
 
         .section-header {
@@ -2364,7 +2436,71 @@
             color: var(--orange);
         }
 
+        @media (hover: hover) and (pointer: fine) {
+            .card:hover::before {
+                opacity: 1;
+            }
+
+            .card:hover {
+                transform: translateY(-5px);
+                border-color: rgba(251, 146, 60, 0.3);
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            }
+
+            .family-album-preview:hover {
+                transform: scale(1.05);
+                box-shadow: 0 5px 15px rgba(251, 146, 60, 0.3);
+            }
+
+            .photo-card:hover {
+                transform: translateY(-5px) scale(1.02);
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            }
+
+            .photo-action-btn:hover {
+                background: var(--dark-lighter);
+                color: var(--text);
+            }
+
+            .video-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }
+
+            .diary-actions button:hover {
+                border-color: var(--orange);
+                color: var(--text);
+            }
+
+            .message-input button:hover {
+                transform: scale(1.03);
+                box-shadow: 0 8px 25px rgba(34, 211, 238, 0.3);
+            }
+
+            .file-upload-label:hover {
+                background: var(--dark-lighter);
+                border-color: var(--orange);
+                color: var(--orange);
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .card:hover,
+            .photo-card:hover,
+            .video-card:hover,
+            .message-input button:hover,
+            .family-album-preview:hover,
+            .file-upload-label:hover {
+                transform: none;
+                box-shadow: none;
+            }
+        }
+
         @media (max-width: 768px) {
+            .nav-container {
+                padding: 0 16px;
+            }
+
             .nav-links {
                 display: none;
             }
@@ -2377,13 +2513,49 @@
                 left: 0;
                 width: 100%;
                 background: var(--dark);
-                padding: 15px;
-                gap: 15px;
+                padding: 12px;
+                gap: 10px;
                 border-bottom: 1px solid var(--border);
+                max-height: calc(100svh - 60px);
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+            }
+
+            .nav-links.active .nav-link {
+                padding: 12px 12px;
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.03);
+            }
+
+            .nav-btn,
+            .mobile-menu-btn,
+            .lang-switch {
+                min-width: 44px;
+                min-height: 44px;
+            }
+
+            .nav-btn,
+            .mobile-menu-btn {
+                width: 44px;
+                height: 44px;
+            }
+
+            .lang-switch {
+                padding: 0 14px;
             }
 
             .hero-calendar {
                 display: none;
+            }
+
+            .hero {
+                height: auto;
+                min-height: 100svh;
+                justify-content: flex-start;
+                gap: 16px;
+                padding-top: calc(74px + env(safe-area-inset-top));
+                padding-bottom: calc(24px + env(safe-area-inset-bottom));
             }
 
             .hero-stats {
@@ -2394,7 +2566,7 @@
 
             .hero-content {
                 padding: 0 22px;
-                margin-top: 40px;
+                margin-top: 0;
             }
 
             .hero-title {
@@ -2501,7 +2673,7 @@
             .hero-countdown {
                 width: calc(100% - 40px);
                 padding: 16px 14px;
-                bottom: 95px;
+                bottom: 0;
                 border-radius: 16px;
             }
 
@@ -2520,6 +2692,32 @@
 
             .hero-countdown-date {
                 font-size: 0.72rem;
+            }
+
+            .scroll-indicator {
+                display: none;
+            }
+
+            .card {
+                padding: 18px;
+                border-radius: 16px;
+            }
+
+            .photo-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .photo-card img {
+                height: 180px;
+            }
+
+            .photo-action-btn {
+                min-height: 40px;
+            }
+
+            #home {
+                scroll-margin-top: 0;
             }
         }
 
@@ -2547,6 +2745,15 @@
 
             .hero-countdown-item .number {
                 font-size: 1.45rem;
+            }
+
+            .admin-btn span {
+                display: none;
+            }
+
+            .admin-btn {
+                padding: 10px 12px;
+                border-radius: 12px;
             }
         }
 
@@ -2599,16 +2806,16 @@
                 <span data-i18n="siteName">童迹</span>
             </div>
             <div class="nav-links" id="navLinks">
-                <a class="nav-link active" data-section="home" data-i18n="nav.home">首页</a>
-                <a class="nav-link" data-section="family" data-i18n="nav.family">家庭成员</a>
-                <a class="nav-link" data-section="photos" data-i18n="nav.photos">照片墙</a>
-                <a class="nav-link" data-section="videos" data-i18n="nav.videos">视频</a>
-                <a class="nav-link" data-section="milestones" data-i18n="nav.milestones">成长里程碑</a>
-                <a class="nav-link" data-section="growth" data-i18n="nav.growth">成长标尺</a>
-                <a class="nav-link" data-section="honors" data-i18n="nav.honors">荣誉时刻</a>
-                <a class="nav-link" data-section="wishes" data-i18n="nav.wishes">愿望清单</a>
-                <a class="nav-link" data-section="diary" data-i18n="nav.diary">童迹</a>
-                <a class="nav-link" data-section="messages" data-i18n="nav.messages">留言</a>
+                <a class="nav-link active" href="#home" data-section="home" data-i18n="nav.home">首页</a>
+                <a class="nav-link" href="#family" data-section="family" data-i18n="nav.family">家庭成员</a>
+                <a class="nav-link" href="#photos" data-section="photos" data-i18n="nav.photos">照片墙</a>
+                <a class="nav-link" href="#videos" data-section="videos" data-i18n="nav.videos">视频</a>
+                <a class="nav-link" href="#milestones" data-section="milestones" data-i18n="nav.milestones">成长里程碑</a>
+                <a class="nav-link" href="#growth" data-section="growth" data-i18n="nav.growth">成长标尺</a>
+                <a class="nav-link" href="#honors" data-section="honors" data-i18n="nav.honors">荣誉时刻</a>
+                <a class="nav-link" href="#wishes" data-section="wishes" data-i18n="nav.wishes">愿望清单</a>
+                <a class="nav-link" href="#diary" data-section="diary" data-i18n="nav.diary">童迹</a>
+                <a class="nav-link" href="#messages" data-section="messages" data-i18n="nav.messages">留言</a>
             </div>
             <div class="nav-actions">
                 <div class="weather-effects-btn">
@@ -2658,6 +2865,7 @@
             </div>
         </div>
     </nav>
+    <div class="nav-backdrop" id="navBackdrop"></div>
 
     <div class="smooth-scroll-container">
         <section class="hero" id="home">
@@ -4330,11 +4538,13 @@
 
         function setupEventListeners() {
             document.querySelectorAll('.nav-link').forEach(link => {
-                link.addEventListener('click', () => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
                     const section = link.dataset.section;
                     scrollToSection(section);
                     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
                     link.classList.add('active');
+                    if (window.matchMedia('(max-width: 768px)').matches) closeMobileNav();
                 });
             });
 
@@ -4356,8 +4566,13 @@
             });
 
             document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-                document.querySelector('.nav-links').classList.toggle('active');
+                const navLinks = document.getElementById('navLinks');
+                if (navLinks.classList.contains('active')) closeMobileNav();
+                else openMobileNav();
             });
+
+            const navBackdrop = document.getElementById('navBackdrop');
+            if (navBackdrop) navBackdrop.addEventListener('click', closeMobileNav);
 
             document.getElementById('searchBtn').addEventListener('click', openSearch);
             document.getElementById('searchClose').addEventListener('click', closeSearch);
@@ -4389,14 +4604,46 @@
                     closeAlbumModal();
                     closeSearch();
                     closeAdmin();
+                    closeMobileNav();
                 }
                 if (e.key === 'ArrowLeft') prevPhoto();
                 if (e.key === 'ArrowRight') nextPhoto();
             });
+
+            window.addEventListener('resize', () => {
+                if (!window.matchMedia('(max-width: 768px)').matches) closeMobileNav();
+            });
         }
 
         function scrollToSection(section) {
-            document.getElementById(section).scrollIntoView({ behavior: 'smooth' });
+            const el = document.getElementById(section);
+            if (!el) return;
+            const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
+            el.scrollIntoView({ behavior, block: 'start' });
+        }
+
+        function openMobileNav() {
+            const navLinks = document.getElementById('navLinks');
+            if (!navLinks) return;
+            navLinks.classList.add('active');
+            document.body.classList.add('nav-open');
+            const btn = document.getElementById('mobileMenuBtn');
+            if (btn) {
+                btn.setAttribute('aria-expanded', 'true');
+                btn.innerHTML = '<i class="fas fa-xmark"></i>';
+            }
+        }
+
+        function closeMobileNav() {
+            const navLinks = document.getElementById('navLinks');
+            if (!navLinks) return;
+            navLinks.classList.remove('active');
+            document.body.classList.remove('nav-open');
+            const btn = document.getElementById('mobileMenuBtn');
+            if (btn) {
+                btn.setAttribute('aria-expanded', 'false');
+                btn.innerHTML = '<i class="fas fa-bars"></i>';
+            }
         }
 
         function toggleTheme() {
@@ -5937,6 +6184,7 @@
         }
 
         function applyWeatherEffect(type) {
+            if (prefersReducedMotion()) type = 'none';
             if (type === 'auto') {
                 appData.weatherEffectMode = 'auto';
                 saveData();
@@ -5964,7 +6212,9 @@
                 return;
             }
 
-            const particleCount = type === 'rain' ? 150 : (type === 'snow' ? 100 : (type === 'meteor' ? 15 : 50));
+            const isMobile = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth <= 768;
+            const baseCount = type === 'rain' ? 150 : (type === 'snow' ? 100 : (type === 'meteor' ? 15 : 50));
+            const particleCount = isMobile ? Math.max(8, Math.round(baseCount * 0.55)) : baseCount;
             for (let i = 0; i < particleCount; i++) {
                 weatherParticles.push(createParticle(type));
             }
