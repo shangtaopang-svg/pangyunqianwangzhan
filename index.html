@@ -3218,7 +3218,7 @@
                     <button class="admin-login-cancel" id="adminLoginCancel" type="button" data-i18n="admin.loginCancel">取消</button>
                 </div>
             </div>
-            <p class="admin-login-hint" data-i18n="admin.loginHint">提示：本页面只做前端密码保护，适合家庭私用。</p>
+            <p class="admin-login-hint" data-i18n="admin.loginHint">提示：每次进入后台都需要输入密码（本页面只做前端密码保护，适合家庭私用）。</p>
         </div>
         <div class="admin-panel">
             <div class="admin-header">
@@ -3280,7 +3280,7 @@
                 'admin.passwordPlaceholder': '请输入管理密码',
                 'admin.loginSubmit': '进入后台',
                 'admin.loginCancel': '取消',
-                'admin.loginHint': '提示：本页面只做前端密码保护，适合家庭私用。',
+                'admin.loginHint': '提示：每次进入后台都需要输入密码（本页面只做前端密码保护，适合家庭私用）。',
                 'admin.music': '音乐',
                 'admin.diaries': '童迹',
                 'admin.messages': '留言',
@@ -3386,7 +3386,7 @@
                 'admin.passwordPlaceholder': 'Enter admin password',
                 'admin.loginSubmit': 'Enter Admin',
                 'admin.loginCancel': 'Cancel',
-                'admin.loginHint': 'Note: this is client-side password protection for private family use.',
+                'admin.loginHint': 'Note: password is required every time. This is client-side protection for private family use.',
                 'admin.music': 'Music',
                 'admin.diaries': 'Footprints',
                 'admin.messages': 'Messages',
@@ -3542,8 +3542,7 @@
         let currentLang = localStorage.getItem('lang') || 'zh';
         let appData = normalizeAppData(JSON.parse(localStorage.getItem('appData')) || {});
         const ADMIN_PASSWORD_HASH = '05afc476279950da10fe7c4586de091dfe044d61520caa8bfaf18ca3c7a9a3e0';
-        const ADMIN_SESSION_KEY = 'adminVerified';
-        let adminVerified = localStorage.getItem(ADMIN_SESSION_KEY) === 'true';
+        let adminVerified = false;
 
         let currentPhotoIndex = 0;
         let currentFilter = 'all';
@@ -4828,17 +4827,13 @@
             const loginCard = document.getElementById('adminLoginCard');
             const panel = overlay.querySelector('.admin-panel');
             overlay.classList.add('active');
-            if (adminVerified) {
-                loginCard.style.display = 'none';
-                panel.style.display = 'block';
-            } else {
-                loginCard.style.display = 'block';
-                panel.style.display = 'none';
-                const input = document.getElementById('adminPasswordInput');
-                if (input) {
-                    input.value = '';
-                    setTimeout(() => input.focus(), 30);
-                }
+            adminVerified = false;
+            loginCard.style.display = 'block';
+            panel.style.display = 'none';
+            const input = document.getElementById('adminPasswordInput');
+            if (input) {
+                input.value = '';
+                setTimeout(() => input.focus(), 30);
             }
             document.body.style.overflow = 'hidden';
         }
@@ -4850,6 +4845,7 @@
             overlay.classList.remove('active');
             loginCard.style.display = 'none';
             panel.style.display = 'block';
+            adminVerified = false;
             document.body.style.overflow = '';
         }
 
@@ -4867,6 +4863,7 @@
                 return;
             }
 
+            try { localStorage.removeItem('adminVerified'); } catch (e) {}
             const hash = await sha256Hex(password);
             if (hash !== ADMIN_PASSWORD_HASH) {
                 if (input) {
@@ -4878,7 +4875,6 @@
             }
 
             adminVerified = true;
-            localStorage.setItem(ADMIN_SESSION_KEY, 'true');
             const overlay = document.getElementById('adminOverlay');
             document.getElementById('adminLoginCard').style.display = 'none';
             overlay.querySelector('.admin-panel').style.display = 'block';
@@ -4887,7 +4883,6 @@
 
         function logoutAdmin() {
             adminVerified = false;
-            localStorage.removeItem(ADMIN_SESSION_KEY);
             const overlay = document.getElementById('adminOverlay');
             if (overlay && overlay.classList.contains('active')) {
                 const loginCard = document.getElementById('adminLoginCard');
