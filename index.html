@@ -2589,6 +2589,26 @@
             color: var(--orange);
         }
 
+        .mini-copy-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--dark-light);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .mini-copy-btn:hover {
+            background: var(--dark-lighter);
+            border-color: rgba(251, 146, 60, 0.35);
+        }
+
         @media (hover: hover) and (pointer: fine) {
             .card:hover::before {
                 opacity: 1;
@@ -3753,6 +3773,69 @@
             setTimeout(() => URL.revokeObjectURL(url), 0);
         }
 
+        async function copyToClipboard(text) {
+            const value = String(text || '');
+            if (!value) return false;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(value);
+                    return true;
+                }
+            } catch (e) {}
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = value;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                const ok = document.execCommand('copy');
+                ta.remove();
+                return !!ok;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function getPathBasename(raw) {
+            const s = String(raw || '').trim();
+            if (!s) return '';
+            try {
+                if (s.includes('://')) {
+                    const u = new URL(s);
+                    const parts = u.pathname.split('/').filter(Boolean);
+                    return decodeURIComponent(parts[parts.length - 1] || '');
+                }
+            } catch (e) {}
+            const withoutQuery = s.split('?')[0].split('#')[0];
+            const parts = withoutQuery.split('/').filter(Boolean);
+            return parts[parts.length - 1] || '';
+        }
+
+        async function copyPhotoPath() {
+            const el = document.getElementById('adminPhotoImageUrl');
+            const text = String(el?.value || '').trim();
+            if (!text) {
+                showToast(currentLang === 'zh' ? '没有可复制的路径' : 'No path to copy');
+                return;
+            }
+            const ok = await copyToClipboard(text);
+            showToast(ok ? (currentLang === 'zh' ? '已复制路径' : 'Path copied') : (currentLang === 'zh' ? '复制失败' : 'Copy failed'));
+        }
+
+        async function copyPhotoName() {
+            const el = document.getElementById('adminPhotoImageUrl');
+            const text = String(el?.value || '').trim();
+            const name = getPathBasename(text);
+            if (!name) {
+                showToast(currentLang === 'zh' ? '没有可复制的文件名' : 'No filename to copy');
+                return;
+            }
+            const ok = await copyToClipboard(name);
+            showToast(ok ? (currentLang === 'zh' ? '已复制文件名' : 'Filename copied') : (currentLang === 'zh' ? '复制失败' : 'Copy failed'));
+        }
+
         function isDataImageUrl(s) {
             return typeof s === 'string' && s.startsWith('data:image');
         }
@@ -4462,6 +4545,8 @@
                     </div>
                     <div class="admin-form-row">
                         <input type="text" id="adminPhotoImageUrl" placeholder="${currentLang === 'zh' ? '可粘贴图片URL或仓库路径（例如 media/images/xxx.jpg）' : 'Paste an image URL or a repo path (e.g. media/images/xxx.jpg)'}" style="flex:2" value="${editing?.image || ''}">
+                        <button class="mini-copy-btn" type="button" onclick="copyPhotoPath()"><i class="fas fa-copy"></i> ${currentLang === 'zh' ? '复制路径' : 'Copy path'}</button>
+                        <button class="mini-copy-btn" type="button" onclick="copyPhotoName()"><i class="fas fa-copy"></i> ${currentLang === 'zh' ? '复制文件名' : 'Copy name'}</button>
                         <label class="file-upload-label" style="flex:2">
                             <i class="fas fa-upload"></i> ${currentLang === 'zh' ? '上传本地图片' : 'Upload Image'}
                             <input type="file" id="adminPhotoFile" accept="image/*" style="display:none" onchange="handleAdminPhotoUpload(event)">
