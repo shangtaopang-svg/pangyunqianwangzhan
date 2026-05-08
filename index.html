@@ -3777,8 +3777,12 @@
 
             if (previewName) {
                 previewName.textContent = currentLang === 'zh'
-                    ? `已选择本地文件：${file.name}（请上传到 GitHub 仓库并保持同名）`
-                    : `Selected: ${file.name} (upload to GitHub repo with same name)`;
+                    ? (suggestedPath
+                        ? `已选择本地文件：${file.name}（请上传到 GitHub：${suggestedPath}）`
+                        : `已选择本地文件：${file.name}（请上传到 GitHub 仓库并保持同名）`)
+                    : (suggestedPath
+                        ? `Selected: ${file.name} (upload to GitHub: ${suggestedPath})`
+                        : `Selected: ${file.name} (upload to GitHub repo with same name)`);
             }
             if (previewWrap) {
                 previewWrap.style.display = 'flex';
@@ -4501,6 +4505,26 @@
                     const name = section.querySelector('#adminPhotoFileName');
                     if (img) img.src = url;
                     if (name) name.textContent = currentLang === 'zh' ? '已使用URL' : 'Using URL';
+                    if (preview) preview.style.display = 'block';
+                });
+            }
+            const categorySelect = section.querySelector('#adminPhotoCategory');
+            if (categorySelect && urlInput) {
+                categorySelect.addEventListener('change', () => {
+                    const raw = String(urlInput.value || '').trim();
+                    if (!raw) return;
+                    if (raw.includes('://')) return;
+                    if (!raw.startsWith('media/images/')) return;
+                    const parts = raw.split('/');
+                    if (parts.length < 4) return;
+                    parts[2] = String(categorySelect.value || '').trim() || parts[2];
+                    const next = parts.join('/');
+                    urlInput.value = next;
+                    const hidden = section.querySelector('#adminPhotoImage');
+                    if (hidden) hidden.value = next;
+                    const img = section.querySelector('#adminPhotoPreviewImg');
+                    if (img) img.src = next;
+                    const preview = section.querySelector('#adminPhotoPreview');
                     if (preview) preview.style.display = 'block';
                 });
             }
@@ -6159,7 +6183,8 @@
         function handleAdminPhotoUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
-            const suggested = suggestRepoMediaPath('media/images', file.name);
+            const category = (document.getElementById('adminPhotoCategory')?.value || '').trim() || 'daily';
+            const suggested = suggestRepoMediaPath(`media/images/${category}`, file.name);
             applyLocalFileSelection({
                 file,
                 previewImgId: 'adminPhotoPreviewImg',
@@ -6170,8 +6195,8 @@
                 suggestedPath: suggested
             });
             showToast(currentLang === 'zh'
-                ? '已选择图片。下一步：把同名图片上传到 GitHub 仓库 media/images/，再点保存。'
-                : 'Selected image. Next: upload it to GitHub repo media/images/ and then save.');
+                ? `已选择图片。下一步：把同名图片上传到 GitHub 仓库 ${suggested.replace(/\/[^\/]+$/, '/') }，再点保存。`
+                : `Selected image. Next: upload it to GitHub repo ${suggested.replace(/\/[^\/]+$/, '/') } and then save.`);
         }
 
         function handleAdminVideoThumbUpload(event) {
