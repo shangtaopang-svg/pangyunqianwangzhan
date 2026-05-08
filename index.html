@@ -3280,6 +3280,13 @@
         </div>
     </div>
 
+    <div class="modal" id="videoModal">
+        <div class="modal-content" style="max-width: 980px;">
+            <button class="modal-close" id="videoModalClose">&times;</button>
+            <video id="modalVideo" controls playsinline style="width:100%;max-height:70vh;border-radius:14px;background:#000;"></video>
+        </div>
+    </div>
+
     <div class="modal" id="albumModal">
         <div class="modal-content" style="background: var(--dark-card); border-radius: 20px; padding: 28px; max-width: 750px;">
             <button class="modal-close" id="albumModalClose">&times;</button>
@@ -3647,6 +3654,7 @@
         const REPO_DATA_URL = 'data.json';
         const DRAFT_APPDATA_KEY = 'draftAppData';
         const ADMIN_PASSWORD_HASH = '05afc476279950da10fe7c4586de091dfe044d61520caa8bfaf18ca3c7a9a3e0';
+        const VIDEO_THUMB_PLACEHOLDER = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#151a22"/><stop offset="1" stop-color="#0b0f16"/></linearGradient></defs><rect width="900" height="560" rx="28" ry="28" fill="url(#g)"/><circle cx="720" cy="160" r="120" fill="rgba(255,255,255,0.06)"/><circle cx="780" cy="260" r="46" fill="rgba(255,255,255,0.04)"/><path d="M410 210 L570 280 L410 350 Z" fill="rgba(255,255,255,0.82)"/><text x="70" y="110" font-size="56" fill="rgba(255,255,255,0.92)" font-family="Noto Sans SC, Arial, sans-serif">视频</text><text x="72" y="168" font-size="26" fill="rgba(255,255,255,0.68)" font-family="Inter, Arial, sans-serif">Video</text></svg>`);
         let adminVerified = false;
 
         let currentPhotoIndex = 0;
@@ -3743,6 +3751,41 @@
             a.click();
             a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 0);
+        }
+
+        function isDataImageUrl(s) {
+            return typeof s === 'string' && s.startsWith('data:image');
+        }
+
+        function suggestRepoMediaPath(folder, filename) {
+            const name = String(filename || '').trim();
+            if (!name) return `${folder}/`;
+            return `${folder}/${name}`;
+        }
+
+        function applyLocalFileSelection({ file, previewImgId, previewNameId, previewWrapId, urlInputId, hiddenId, suggestedPath }) {
+            const previewImg = document.getElementById(previewImgId);
+            const previewName = document.getElementById(previewNameId);
+            const previewWrap = document.getElementById(previewWrapId);
+            const urlInput = urlInputId ? document.getElementById(urlInputId) : null;
+            const hidden = hiddenId ? document.getElementById(hiddenId) : null;
+
+            try {
+                const objectUrl = URL.createObjectURL(file);
+                if (previewImg) previewImg.src = objectUrl;
+            } catch (e) {}
+
+            if (previewName) {
+                previewName.textContent = currentLang === 'zh'
+                    ? `已选择本地文件：${file.name}（请上传到 GitHub 仓库并保持同名）`
+                    : `Selected: ${file.name} (upload to GitHub repo with same name)`;
+            }
+            if (previewWrap) {
+                previewWrap.style.display = 'flex';
+                previewWrap.style.alignItems = 'center';
+            }
+            if (urlInput && suggestedPath) urlInput.value = suggestedPath;
+            if (hidden && suggestedPath) hidden.value = suggestedPath;
         }
 
         function exportDataJson() {
@@ -4244,7 +4287,7 @@
             grid.innerHTML = appData.videos.map(video => `
                 <div class="video-card" onclick="playVideo(${video.id})">
                     <div class="video-thumbnail">
-                        <img ${imgTagAttrs(video.thumbnail)} alt="${video.title}">
+                        <img ${imgTagAttrs(video.thumbnail || VIDEO_THUMB_PLACEHOLDER)} alt="${video.title}">
                         <div class="video-play-icon"><i class="fas fa-play-circle"></i></div>
                     </div>
                     <div class="video-info">
@@ -4481,8 +4524,20 @@
                         <input type="date" id="adminVideoDate" value="${editing?.date || ''}">
                     </div>
                     <div class="admin-form-row">
+                        <input type="text" id="adminVideoUrl" placeholder="${currentLang === 'zh' ? '视频文件路径（如 media/videos/xxx.mp4）或URL' : 'Video path (e.g. media/videos/xxx.mp4) or URL'}" value="${editing?.url || ''}" style="flex:2">
+                    </div>
+                    <div class="admin-form-row">
                         <label class="file-upload-label" style="flex:2">
-                            <i class="fas fa-upload"></i> ${currentLang === 'zh' ? '上传视频封面' : 'Upload Thumbnail'}
+                            <i class="fas fa-video"></i> ${currentLang === 'zh' ? '选择本地视频（自动填路径）' : 'Select local video (auto-fill path)'}
+                            <input type="file" id="adminVideoFile" accept="video/*" style="display:none" onchange="handleAdminVideoFileSelect(event)">
+                        </label>
+                    </div>
+                    <div id="adminVideoFilePreview" class="music-upload-preview" style="display:none;margin-top:10px;">
+                        <span id="adminVideoFileName" style="color:var(--text-muted);font-size:0.85rem;"></span>
+                    </div>
+                    <div class="admin-form-row">
+                        <label class="file-upload-label" style="flex:2">
+                            <i class="fas fa-upload"></i> ${currentLang === 'zh' ? '上传封面（可选）' : 'Upload Thumbnail (optional)'}
                             <input type="file" id="adminVideoThumbFile" accept="image/*" style="display:none" onchange="handleAdminVideoThumbUpload(event)">
                         </label>
                     </div>
@@ -4491,6 +4546,9 @@
                         <span id="adminVideoThumbFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;">${editing?.thumbnail ? (currentLang === 'zh' ? '当前封面' : 'Current thumbnail') : ''}</span>
                     </div>
                     <input type="hidden" id="adminVideoThumb" value="${editing?.thumbnail || ''}">
+                    <div style="color:var(--text-muted);font-size:0.82rem;line-height:1.4;">
+                        ${currentLang === 'zh' ? '说明：视频文件需要先上传到 GitHub 仓库（例如 media/videos/），这里填写路径或完整URL即可播放。' : 'Note: Upload the video file to your GitHub repo (e.g. media/videos/), then paste the path or full URL here.'}
+                    </div>
                     <div class="admin-form-row" style="margin-top:15px;">
                         <button onclick="saveVideo()" style="flex:1;"><i class="fas fa-save"></i> ${currentLang === 'zh' ? '保存' : 'Save'}</button>
                         ${isEdit ? `<button onclick="resetVideoForm()" type="button" style="flex:1;background:var(--dark-light);border:1px solid var(--border);color:var(--text);"><i class="fas fa-times"></i> ${currentLang === 'zh' ? '取消编辑' : 'Cancel'}</button>` : ''}
@@ -4499,7 +4557,7 @@
                 <div class="admin-list">
                     ${appData.videos.map(v => `
                         <div class="admin-item">
-                            <img ${imgTagAttrs(v.thumbnail)} alt="${v.title}">
+                            <img ${imgTagAttrs(v.thumbnail || VIDEO_THUMB_PLACEHOLDER)} alt="${v.title}">
                             <div class="admin-item-info">
                                 <h5>${v.title}</h5>
                                 <p>${v.date}</p>
@@ -5092,12 +5150,21 @@
             document.getElementById('modalClose').addEventListener('click', closePhotoModal);
             document.getElementById('modalPrev').addEventListener('click', prevPhoto);
             document.getElementById('modalNext').addEventListener('click', nextPhoto);
+            const videoModalClose = document.getElementById('videoModalClose');
+            if (videoModalClose) videoModalClose.addEventListener('click', closeVideoModal);
+            const videoModal = document.getElementById('videoModal');
+            if (videoModal) {
+                videoModal.addEventListener('click', (e) => {
+                    if (e.target && e.target.id === 'videoModal') closeVideoModal();
+                });
+            }
             document.getElementById('albumModalClose').addEventListener('click', closeAlbumModal);
             document.getElementById('musicToggle').addEventListener('click', toggleMusic);
 
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
                     closePhotoModal();
+                    closeVideoModal();
                     closeAlbumModal();
                     closeSearch();
                     closeAdmin();
@@ -5370,7 +5437,36 @@
         }
 
         function playVideo(id) {
-            showToast(currentLang === 'zh' ? '视频播放功能' : 'Video playback');
+            const video = appData.videos.find((v) => v.id === id);
+            if (!video) return;
+            const url = String(video.url || '').trim();
+            if (!url) {
+                showToast(currentLang === 'zh' ? '请先在后台填写视频地址（如 media/videos/xxx.mp4）' : 'Please set a video URL in admin');
+                return;
+            }
+            const modal = document.getElementById('videoModal');
+            const el = document.getElementById('modalVideo');
+            if (!modal || !el) return;
+            el.pause();
+            el.removeAttribute('src');
+            el.load();
+            el.src = url;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            const p = el.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+
+        function closeVideoModal() {
+            const modal = document.getElementById('videoModal');
+            const el = document.getElementById('modalVideo');
+            if (el) {
+                el.pause();
+                el.removeAttribute('src');
+                el.load();
+            }
+            if (modal) modal.classList.remove('active');
+            document.body.style.overflow = '';
         }
 
         function toggleWish(id) {
@@ -5590,6 +5686,12 @@
             const imageUrl = document.getElementById('adminPhotoImageUrl')?.value.trim() || '';
             const image = imageUrl || document.getElementById('adminPhotoImage').value.trim();
             if (!title || !image) { showToast(currentLang === 'zh' ? '请填写标题和图片' : 'Please fill title and image'); return; }
+            if (isDataImageUrl(image)) {
+                showToast(currentLang === 'zh'
+                    ? '图片太大无法保存到浏览器。请先把图片上传到 GitHub 仓库（如 media/images/），再在这里填写路径。'
+                    : 'Image is too large to store in browser. Upload it to GitHub repo (e.g. media/images/) and paste the path.');
+                return;
+            }
             if (editingPhotoId) {
                 const photo = appData.photos.find((p) => p.id === editingPhotoId);
                 if (!photo) { showToast(currentLang === 'zh' ? '照片不存在' : 'Photo not found'); return; }
@@ -5636,15 +5738,18 @@
             const title = document.getElementById('adminVideoTitle').value.trim();
             const date = document.getElementById('adminVideoDate').value.trim();
             const thumbnail = document.getElementById('adminVideoThumb').value.trim();
-            if (!title || !thumbnail) { showToast(currentLang === 'zh' ? '请填写标题和缩略图' : 'Please fill title and thumbnail'); return; }
+            const url = (document.getElementById('adminVideoUrl')?.value || '').trim();
+            if (!title || !url) { showToast(currentLang === 'zh' ? '请填写标题和视频地址' : 'Please fill title and video URL'); return; }
+            const poster = thumbnail || VIDEO_THUMB_PLACEHOLDER;
             if (editingVideoId) {
                 const video = appData.videos.find((v) => v.id === editingVideoId);
                 if (!video) { showToast(currentLang === 'zh' ? '视频不存在' : 'Video not found'); return; }
                 video.title = title;
                 video.date = date || '';
-                video.thumbnail = thumbnail;
+                video.thumbnail = poster;
+                video.url = url;
             } else {
-                appData.videos.push({ id: Date.now(), title, date: date || '', thumbnail });
+                appData.videos.push({ id: Date.now(), title, date: date || '', thumbnail: poster, url });
             }
             const ok = saveData();
             renderVideos();
@@ -5724,6 +5829,12 @@
             const image = document.getElementById('adminGrowthImage').value.trim();
             if (!date) { showToast(currentLang === 'zh' ? '请选择日期（年月日）' : 'Please select a date (YYYY-MM-DD)'); return; }
             if (!height || !weight) { showToast(currentLang === 'zh' ? '请填写身高和体重' : 'Please fill height and weight'); return; }
+            if (isDataImageUrl(image)) {
+                showToast(currentLang === 'zh'
+                    ? '图片太大无法保存到浏览器。请先把图片上传到 GitHub 仓库（如 media/growth/），再保存。'
+                    : 'Image is too large to store in browser. Upload it to GitHub repo (e.g. media/growth/) and then save.');
+                return;
+            }
             if (editingGrowthId) {
                 const growth = appData.growthRecords.find((g) => g.id === editingGrowthId);
                 if (!growth) { showToast(currentLang === 'zh' ? '成长记录不存在' : 'Growth record not found'); return; }
@@ -5769,6 +5880,12 @@
             const date = document.getElementById('adminHonorDate').value.trim();
             const image = document.getElementById('adminHonorImage').value.trim();
             if (!title) { showToast(currentLang === 'zh' ? '请填写标题' : 'Please fill title'); return; }
+            if (isDataImageUrl(image)) {
+                showToast(currentLang === 'zh'
+                    ? '图片太大无法保存到浏览器。请先把图片上传到 GitHub 仓库（如 media/honors/），再保存。'
+                    : 'Image is too large to store in browser. Upload it to GitHub repo (e.g. media/honors/) and then save.');
+                return;
+            }
             if (editingHonorId) {
                 const honor = appData.honors.find((h) => h.id === editingHonorId);
                 if (!honor) { showToast(currentLang === 'zh' ? '荣誉不存在' : 'Honor not found'); return; }
@@ -6042,57 +6159,89 @@
         function handleAdminPhotoUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('adminPhotoImage').value = e.target.result;
-                document.getElementById('adminPhotoPreviewImg').src = e.target.result;
-                document.getElementById('adminPhotoFileName').textContent = file.name;
-                document.getElementById('adminPhotoPreview').style.display = 'flex';
-                document.getElementById('adminPhotoPreview').style.alignItems = 'center';
-            };
-            reader.readAsDataURL(file);
+            const suggested = suggestRepoMediaPath('media/images', file.name);
+            applyLocalFileSelection({
+                file,
+                previewImgId: 'adminPhotoPreviewImg',
+                previewNameId: 'adminPhotoFileName',
+                previewWrapId: 'adminPhotoPreview',
+                urlInputId: 'adminPhotoImageUrl',
+                hiddenId: 'adminPhotoImage',
+                suggestedPath: suggested
+            });
+            showToast(currentLang === 'zh'
+                ? '已选择图片。下一步：把同名图片上传到 GitHub 仓库 media/images/，再点保存。'
+                : 'Selected image. Next: upload it to GitHub repo media/images/ and then save.');
         }
 
         function handleAdminVideoThumbUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('adminVideoThumb').value = e.target.result;
-                document.getElementById('adminVideoThumbPreviewImg').src = e.target.result;
-                document.getElementById('adminVideoThumbFileName').textContent = file.name;
-                document.getElementById('adminVideoThumbPreview').style.display = 'flex';
-                document.getElementById('adminVideoThumbPreview').style.alignItems = 'center';
-            };
-            reader.readAsDataURL(file);
+            const suggested = suggestRepoMediaPath('media/video-thumbs', file.name);
+            applyLocalFileSelection({
+                file,
+                previewImgId: 'adminVideoThumbPreviewImg',
+                previewNameId: 'adminVideoThumbFileName',
+                previewWrapId: 'adminVideoThumbPreview',
+                urlInputId: null,
+                hiddenId: 'adminVideoThumb',
+                suggestedPath: suggested
+            });
+        }
+
+        function handleAdminVideoFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const suggested = suggestRepoMediaPath('media/videos', file.name);
+            const urlInput = document.getElementById('adminVideoUrl');
+            if (urlInput) urlInput.value = suggested;
+            const previewName = document.getElementById('adminVideoFileName');
+            if (previewName) {
+                previewName.textContent = currentLang === 'zh'
+                    ? `已选择本地视频：${file.name}（请上传到 GitHub 仓库 ${suggested}）`
+                    : `Selected: ${file.name} (upload to GitHub repo as ${suggested})`;
+            }
+            const preview = document.getElementById('adminVideoFilePreview');
+            if (preview) preview.style.display = 'flex';
+            showToast(currentLang === 'zh'
+                ? '已自动填入视频路径。下一步：把视频上传到 GitHub 仓库 media/videos/，再点保存。'
+                : 'Auto-filled video path. Next: upload it to GitHub repo media/videos/ and then save.');
         }
 
         function handleAdminGrowthImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('adminGrowthImage').value = e.target.result;
-                document.getElementById('adminGrowthPreviewImg').src = e.target.result;
-                document.getElementById('adminGrowthFileName').textContent = file.name;
-                document.getElementById('adminGrowthPreview').style.display = 'flex';
-                document.getElementById('adminGrowthPreview').style.alignItems = 'center';
-            };
-            reader.readAsDataURL(file);
+            const suggested = suggestRepoMediaPath('media/growth', file.name);
+            applyLocalFileSelection({
+                file,
+                previewImgId: 'adminGrowthPreviewImg',
+                previewNameId: 'adminGrowthFileName',
+                previewWrapId: 'adminGrowthPreview',
+                urlInputId: null,
+                hiddenId: 'adminGrowthImage',
+                suggestedPath: suggested
+            });
+            showToast(currentLang === 'zh'
+                ? '已选择图片。下一步：把同名图片上传到 GitHub 仓库 media/growth/，再点保存。'
+                : 'Selected image. Next: upload it to GitHub repo media/growth/ and then save.');
         }
 
         function handleAdminHonorImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('adminHonorImage').value = e.target.result;
-                document.getElementById('adminHonorPreviewImg').src = e.target.result;
-                document.getElementById('adminHonorFileName').textContent = file.name;
-                document.getElementById('adminHonorPreview').style.display = 'flex';
-                document.getElementById('adminHonorPreview').style.alignItems = 'center';
-            };
-            reader.readAsDataURL(file);
+            const suggested = suggestRepoMediaPath('media/honors', file.name);
+            applyLocalFileSelection({
+                file,
+                previewImgId: 'adminHonorPreviewImg',
+                previewNameId: 'adminHonorFileName',
+                previewWrapId: 'adminHonorPreview',
+                urlInputId: null,
+                hiddenId: 'adminHonorImage',
+                suggestedPath: suggested
+            });
+            showToast(currentLang === 'zh'
+                ? '已选择图片。下一步：把同名图片上传到 GitHub 仓库 media/honors/，再点保存。'
+                : 'Selected image. Next: upload it to GitHub repo media/honors/ and then save.');
         }
 
         async function handleAdminFamilyAvatarUpload(event) {
