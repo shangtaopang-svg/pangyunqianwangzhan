@@ -2324,6 +2324,42 @@
             display: block;
         }
 
+        .admin-tools {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .admin-tools button {
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--dark-light);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .admin-tools .primary {
+            border: none;
+            background: linear-gradient(135deg, var(--orange), var(--orange-light));
+            color: #fff;
+        }
+
+        .admin-tools-hint {
+            flex: 1;
+            min-width: 220px;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
         .admin-form {
             background: var(--dark);
             border: 1px solid var(--border);
@@ -2792,6 +2828,11 @@
             .admin-tab {
                 white-space: nowrap;
             }
+
+            .admin-tools {
+                padding: 12px;
+            }
+
 
             .growth-chart {
                 padding: 18px;
@@ -3297,6 +3338,13 @@
                 <button class="admin-tab" data-tab="music" data-i18n="admin.music">音乐</button>
                 <button class="admin-tab" data-tab="hero" data-i18n="admin.hero">首页</button>
             </div>
+            <div class="admin-tools">
+                <button class="primary" id="exportDataBtn" type="button">导出 data.json（发布）</button>
+                <button id="importDataBtn" type="button">导入 data.json（预览）</button>
+                <input id="importDataFile" type="file" accept="application/json" style="display:none">
+                <button id="clearDraftBtn" type="button">清除本机草稿</button>
+                <div class="admin-tools-hint">发布方法：把导出的 data.json 上传到 GitHub 仓库根目录，再上传图片到 media/images/，提交即可更新全网。</div>
+            </div>
             <div class="admin-section active" id="admin-photos"></div>
             <div class="admin-section" id="admin-videos"></div>
             <div class="admin-section" id="admin-milestones"></div>
@@ -3594,8 +3642,10 @@
         };
 
         let currentLang = localStorage.getItem('lang') || 'zh';
-        let appData = normalizeAppData(JSON.parse(localStorage.getItem('appData')) || {});
+        let appData = normalizeAppData({});
         const APP_VERSION = '20260507-1';
+        const REPO_DATA_URL = 'data.json';
+        const DRAFT_APPDATA_KEY = 'draftAppData';
         const ADMIN_PASSWORD_HASH = '05afc476279950da10fe7c4586de091dfe044d61520caa8bfaf18ca3c7a9a3e0';
         let adminVerified = false;
 
@@ -3604,6 +3654,12 @@
         let isPlaying = false;
         let currentAudio = null;
         let editingFamilyId = 0;
+        let editingPhotoId = 0;
+        let editingVideoId = 0;
+        let editingMilestoneId = 0;
+        let editingGrowthId = 0;
+        let editingHonorId = 0;
+        let editingWishId = 0;
         let currentTrackObjectUrl = '';
         let mediaObjectUrlCache = new Map();
         let mediaDBPromise = null;
@@ -3650,6 +3706,61 @@
             }
         }
 
+        async function loadRepoAppData() {
+            try {
+                const url = isWeChatBrowser()
+                    ? `${REPO_DATA_URL}?v=${encodeURIComponent(APP_VERSION)}&t=${Date.now()}`
+                    : `${REPO_DATA_URL}?v=${encodeURIComponent(APP_VERSION)}`;
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) return {};
+                const json = await res.json();
+                if (json && typeof json === 'object') return json;
+                return {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function loadDraftAppData() {
+            try {
+                const raw = localStorage.getItem(DRAFT_APPDATA_KEY);
+                if (!raw) return null;
+                const json = JSON.parse(raw);
+                if (json && typeof json === 'object') return json;
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function downloadTextFile(filename, text, mime) {
+            const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+        }
+
+        function exportDataJson() {
+            try {
+                const json = JSON.stringify(appData, null, 2);
+                downloadTextFile('data.json', json, 'application/json;charset=utf-8');
+                showToast(currentLang === 'zh' ? '已导出 data.json（上传到 GitHub 即可发布）' : 'Exported data.json');
+            } catch (e) {
+                showToast(currentLang === 'zh' ? '导出失败' : 'Export failed');
+            }
+        }
+
+        function clearDraftAndReload() {
+            try { localStorage.removeItem(DRAFT_APPDATA_KEY); } catch (e) {}
+            showToast(currentLang === 'zh' ? '已清除本机草稿' : 'Draft cleared');
+            setTimeout(() => location.reload(), 300);
+        }
+
         function isAdminDisabledOnMobile() {
             const isSmall = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
             const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -3662,8 +3773,8 @@
 
         function imgTagAttrs(src) {
             const s = String(src || '');
-            if (s.startsWith('idbimg:')) return `src="" data-idb-src="${s}"`;
-            return `src="${s}"`;
+            if (s.startsWith('idbimg:')) return `src="" data-idb-src="${s}" loading="lazy" decoding="async"`;
+            return `src="${s}" loading="lazy" decoding="async"`;
         }
 
         async function resolveIdbImageRef(ref) {
@@ -3844,7 +3955,7 @@
 
         function saveData() {
             try {
-                localStorage.setItem('appData', JSON.stringify(appData));
+                localStorage.setItem(DRAFT_APPDATA_KEY, JSON.stringify(appData));
                 return true;
             } catch (e) {
                 showToast(currentLang === 'zh' ? '保存失败：存储空间不足' : 'Save failed: storage full');
@@ -3974,7 +4085,7 @@
             }
         }
 
-        function init() {
+        function rerenderAll() {
             renderCalendar();
             renderFamily();
             renderFilterBar();
@@ -3987,14 +4098,17 @@
             renderDiaries();
             renderMessages();
             renderAdminPanel();
-            setupEventListeners();
             updateStats();
             updateHeroBg();
             applyLanguage(currentLang);
             renderCalendar();
+        }
+
+        function init() {
+            rerenderAll();
+            setupEventListeners();
             startCountdown();
             initMusic();
-            saveData();
             migrateFamilyImagesToIdbIfNeeded().catch(() => {});
         }
 
@@ -4283,31 +4397,38 @@
 
         function renderAdminPhotos() {
             const section = document.getElementById('admin-photos');
+            const editing = editingPhotoId ? (appData.photos.find((p) => p.id === editingPhotoId) || null) : null;
+            const isEdit = !!editing;
             section.innerHTML = `
                 <div class="admin-form">
-                    <h4><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加照片' : 'Add Photo'}</h4>
+                    <h4><i class="fas ${isEdit ? 'fa-pen' : 'fa-plus'}"></i> ${isEdit ? (currentLang === 'zh' ? '编辑照片' : 'Edit Photo') : (currentLang === 'zh' ? '添加照片' : 'Add Photo')}</h4>
+                    <input type="hidden" id="adminPhotoId" value="${editing?.id || ''}">
                     <div class="admin-form-row">
-                        <input type="text" id="adminPhotoTitle" placeholder="${currentLang === 'zh' ? '标题' : 'Title'}">
-                        <input type="date" id="adminPhotoDate">
+                        <input type="text" id="adminPhotoTitle" placeholder="${currentLang === 'zh' ? '标题' : 'Title'}" value="${editing?.title || ''}">
+                        <input type="date" id="adminPhotoDate" value="${editing?.date || ''}">
                     </div>
                     <div class="admin-form-row">
                         <select id="adminPhotoCategory">
-                            ${PHOTO_CATEGORIES.map(c => `<option value="${c.key}">${currentLang === 'zh' ? c.zh : c.en}</option>`).join('')}
+                            ${PHOTO_CATEGORIES.map(c => `<option value="${c.key}" ${(editing?.category || 'daily') === c.key ? 'selected' : ''}>${currentLang === 'zh' ? c.zh : c.en}</option>`).join('')}
                         </select>
-                        <input type="text" id="adminPhotoDesc" placeholder="${currentLang === 'zh' ? '描述' : 'Description'}">
+                        <input type="text" id="adminPhotoDesc" placeholder="${currentLang === 'zh' ? '描述' : 'Description'}" value="${editing?.desc || ''}">
                     </div>
                     <div class="admin-form-row">
+                        <input type="text" id="adminPhotoImageUrl" placeholder="${currentLang === 'zh' ? '可粘贴图片URL或仓库路径（例如 media/images/xxx.jpg）' : 'Paste an image URL or a repo path (e.g. media/images/xxx.jpg)'}" style="flex:2" value="${editing?.image || ''}">
                         <label class="file-upload-label" style="flex:2">
                             <i class="fas fa-upload"></i> ${currentLang === 'zh' ? '上传本地图片' : 'Upload Image'}
                             <input type="file" id="adminPhotoFile" accept="image/*" style="display:none" onchange="handleAdminPhotoUpload(event)">
                         </label>
                     </div>
-                    <div id="adminPhotoPreview" class="music-upload-preview" style="display:none;margin-top:10px;">
+                    <div id="adminPhotoPreview" class="music-upload-preview" style="${editing?.image ? 'display:flex;align-items:center;margin-top:10px;' : 'display:none;margin-top:10px;'}">
                         <img id="adminPhotoPreviewImg" src="" style="width:120px;height:80px;object-fit:cover;border-radius:8px;">
-                        <span id="adminPhotoFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;"></span>
+                        <span id="adminPhotoFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;">${editing?.image ? (currentLang === 'zh' ? '当前图片' : 'Current image') : ''}</span>
                     </div>
-                    <input type="hidden" id="adminPhotoImage" value="">
-                    <button onclick="addPhoto()" style="margin-top:15px;"><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加' : 'Add'}</button>
+                    <input type="hidden" id="adminPhotoImage" value="${editing?.image || ''}">
+                    <div class="admin-form-row" style="margin-top:15px;">
+                        <button onclick="savePhoto()" style="flex:1;"><i class="fas fa-save"></i> ${currentLang === 'zh' ? '保存' : 'Save'}</button>
+                        ${isEdit ? `<button onclick="resetPhotoForm()" type="button" style="flex:1;background:var(--dark-light);border:1px solid var(--border);color:var(--text);"><i class="fas fa-times"></i> ${currentLang === 'zh' ? '取消编辑' : 'Cancel'}</button>` : ''}
+                    </div>
                 </div>
                 <div class="admin-list">
                     ${appData.photos.map(p => `
@@ -4318,23 +4439,46 @@
                                 <p>${p.date} | ${getPhotoCategoryLabel(p.category)}</p>
                             </div>
                             <div class="admin-item-actions">
+                                <button onclick="editPhoto(${p.id})"><i class="fas fa-pen"></i></button>
                                 <button onclick="deletePhoto(${p.id})"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     `).join('')}
                 </div>
             `;
+            const urlInput = section.querySelector('#adminPhotoImageUrl');
+            if (urlInput) {
+                urlInput.addEventListener('input', () => {
+                    const url = urlInput.value.trim();
+                    if (!url) return;
+                    const hidden = section.querySelector('#adminPhotoImage');
+                    if (hidden) hidden.value = url;
+                    const preview = section.querySelector('#adminPhotoPreview');
+                    const img = section.querySelector('#adminPhotoPreviewImg');
+                    const name = section.querySelector('#adminPhotoFileName');
+                    if (img) img.src = url;
+                    if (name) name.textContent = currentLang === 'zh' ? '已使用URL' : 'Using URL';
+                    if (preview) preview.style.display = 'block';
+                });
+            }
+            if (editing?.image) {
+                const img = section.querySelector('#adminPhotoPreviewImg');
+                if (img) img.src = editing.image;
+            }
             hydrateIdbImages(section);
         }
 
         function renderAdminVideos() {
             const section = document.getElementById('admin-videos');
+            const editing = editingVideoId ? (appData.videos.find((v) => v.id === editingVideoId) || null) : null;
+            const isEdit = !!editing;
             section.innerHTML = `
                 <div class="admin-form">
-                    <h4><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加视频' : 'Add Video'}</h4>
+                    <h4><i class="fas ${isEdit ? 'fa-pen' : 'fa-plus'}"></i> ${isEdit ? (currentLang === 'zh' ? '编辑视频' : 'Edit Video') : (currentLang === 'zh' ? '添加视频' : 'Add Video')}</h4>
+                    <input type="hidden" id="adminVideoId" value="${editing?.id || ''}">
                     <div class="admin-form-row">
-                        <input type="text" id="adminVideoTitle" placeholder="${currentLang === 'zh' ? '标题' : 'Title'}">
-                        <input type="date" id="adminVideoDate">
+                        <input type="text" id="adminVideoTitle" placeholder="${currentLang === 'zh' ? '标题' : 'Title'}" value="${editing?.title || ''}">
+                        <input type="date" id="adminVideoDate" value="${editing?.date || ''}">
                     </div>
                     <div class="admin-form-row">
                         <label class="file-upload-label" style="flex:2">
@@ -4342,12 +4486,15 @@
                             <input type="file" id="adminVideoThumbFile" accept="image/*" style="display:none" onchange="handleAdminVideoThumbUpload(event)">
                         </label>
                     </div>
-                    <div id="adminVideoThumbPreview" class="music-upload-preview" style="display:none;margin-top:10px;">
+                    <div id="adminVideoThumbPreview" class="music-upload-preview" style="${editing?.thumbnail ? 'display:flex;align-items:center;margin-top:10px;' : 'display:none;margin-top:10px;'}">
                         <img id="adminVideoThumbPreviewImg" src="" style="width:120px;height:80px;object-fit:cover;border-radius:8px;">
-                        <span id="adminVideoThumbFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;"></span>
+                        <span id="adminVideoThumbFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;">${editing?.thumbnail ? (currentLang === 'zh' ? '当前封面' : 'Current thumbnail') : ''}</span>
                     </div>
-                    <input type="hidden" id="adminVideoThumb" value="">
-                    <button onclick="addVideo()" style="margin-top:15px;"><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加' : 'Add'}</button>
+                    <input type="hidden" id="adminVideoThumb" value="${editing?.thumbnail || ''}">
+                    <div class="admin-form-row" style="margin-top:15px;">
+                        <button onclick="saveVideo()" style="flex:1;"><i class="fas fa-save"></i> ${currentLang === 'zh' ? '保存' : 'Save'}</button>
+                        ${isEdit ? `<button onclick="resetVideoForm()" type="button" style="flex:1;background:var(--dark-light);border:1px solid var(--border);color:var(--text);"><i class="fas fa-times"></i> ${currentLang === 'zh' ? '取消编辑' : 'Cancel'}</button>` : ''}
+                    </div>
                 </div>
                 <div class="admin-list">
                     ${appData.videos.map(v => `
@@ -4358,26 +4505,37 @@
                                 <p>${v.date}</p>
                             </div>
                             <div class="admin-item-actions">
+                                <button onclick="editVideo(${v.id})"><i class="fas fa-pen"></i></button>
                                 <button onclick="deleteVideo(${v.id})"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     `).join('')}
                 </div>
             `;
+            if (editing?.thumbnail) {
+                const img = section.querySelector('#adminVideoThumbPreviewImg');
+                if (img) img.src = editing.thumbnail;
+            }
             hydrateIdbImages(section);
         }
 
         function renderAdminMilestones() {
             const section = document.getElementById('admin-milestones');
+            const editing = editingMilestoneId ? (appData.milestones.find((m) => m.id === editingMilestoneId) || null) : null;
+            const isEdit = !!editing;
             section.innerHTML = `
                 <div class="admin-form">
-                    <h4><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加里程碑' : 'Add Milestone'}</h4>
+                    <h4><i class="fas ${isEdit ? 'fa-pen' : 'fa-plus'}"></i> ${isEdit ? (currentLang === 'zh' ? '编辑里程碑' : 'Edit Milestone') : (currentLang === 'zh' ? '添加里程碑' : 'Add Milestone')}</h4>
                     <div class="admin-form-row">
-                        <input type="text" id="adminMilestoneIcon" placeholder="${currentLang === 'zh' ? '图标' : 'Icon'} (🎓)">
-                        <input type="text" id="adminMilestoneTitle" placeholder="${currentLang === 'zh' ? '标题' : 'Title'}">
-                        <input type="text" id="adminMilestoneAge" placeholder="${currentLang === 'zh' ? '年龄' : 'Age'} (6岁)">
+                        <input type="hidden" id="adminMilestoneId" value="${editing?.id || ''}">
+                        <input type="text" id="adminMilestoneIcon" placeholder="${currentLang === 'zh' ? '图标' : 'Icon'} (🎓)" value="${editing?.icon || ''}">
+                        <input type="text" id="adminMilestoneTitle" placeholder="${currentLang === 'zh' ? '标题' : 'Title'}" value="${editing?.title || ''}">
+                        <input type="text" id="adminMilestoneAge" placeholder="${currentLang === 'zh' ? '年龄' : 'Age'} (6岁)" value="${editing?.age || ''}">
                     </div>
-                    <button onclick="addMilestone()"><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加' : 'Add'}</button>
+                    <div class="admin-form-row" style="margin-top:15px;">
+                        <button onclick="saveMilestone()" style="flex:1;"><i class="fas fa-save"></i> ${currentLang === 'zh' ? '保存' : 'Save'}</button>
+                        ${isEdit ? `<button onclick="resetMilestoneForm()" type="button" style="flex:1;background:var(--dark-light);border:1px solid var(--border);color:var(--text);"><i class="fas fa-times"></i> ${currentLang === 'zh' ? '取消编辑' : 'Cancel'}</button>` : ''}
+                    </div>
                 </div>
                 <div class="admin-list">
                     ${appData.milestones.map(m => `
@@ -4388,6 +4546,7 @@
                                 <p>${m.age}</p>
                             </div>
                             <div class="admin-item-actions">
+                                <button onclick="editMilestone(${m.id})"><i class="fas fa-pen"></i></button>
                                 <button onclick="deleteMilestone(${m.id})"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
@@ -4398,27 +4557,33 @@
 
         function renderAdminGrowth() {
             const section = document.getElementById('admin-growth');
+            const editing = editingGrowthId ? (appData.growthRecords.find((g) => g.id === editingGrowthId) || null) : null;
+            const isEdit = !!editing;
             section.innerHTML = `
                 <div class="admin-form">
-                    <h4><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加成长记录' : 'Add Growth Record'}</h4>
+                    <h4><i class="fas ${isEdit ? 'fa-pen' : 'fa-plus'}"></i> ${isEdit ? (currentLang === 'zh' ? '编辑成长记录' : 'Edit Growth Record') : (currentLang === 'zh' ? '添加成长记录' : 'Add Growth Record')}</h4>
                     <div class="admin-form-row">
-                        <input type="date" id="adminGrowthDate">
-                        <input type="text" id="adminGrowthHeight" placeholder="${currentLang === 'zh' ? '身高(cm)' : 'Height(cm)'}">
-                        <input type="text" id="adminGrowthWeight" placeholder="${currentLang === 'zh' ? '体重(kg)' : 'Weight(kg)'}">
+                        <input type="hidden" id="adminGrowthId" value="${editing?.id || ''}">
+                        <input type="date" id="adminGrowthDate" value="${editing?.date || ''}">
+                        <input type="text" id="adminGrowthHeight" placeholder="${currentLang === 'zh' ? '身高(cm)' : 'Height(cm)'}" value="${editing?.height || ''}">
+                        <input type="text" id="adminGrowthWeight" placeholder="${currentLang === 'zh' ? '体重(kg)' : 'Weight(kg)'}" value="${editing?.weight || ''}">
                     </div>
                     <div class="admin-form-row">
-                        <input type="text" id="adminGrowthNote" placeholder="${currentLang === 'zh' ? '备注' : 'Note'}">
+                        <input type="text" id="adminGrowthNote" placeholder="${currentLang === 'zh' ? '备注' : 'Note'}" value="${editing?.note || ''}">
                         <label class="file-upload-label">
                             <i class="fas fa-upload"></i> ${currentLang === 'zh' ? '上传图片' : 'Upload Image'}
                             <input type="file" id="adminGrowthImageFile" accept="image/*" style="display:none" onchange="handleAdminGrowthImageUpload(event)">
                         </label>
                     </div>
-                    <div id="adminGrowthPreview" class="music-upload-preview" style="display:none;margin-top:10px;">
+                    <div id="adminGrowthPreview" class="music-upload-preview" style="${editing?.image ? 'display:flex;align-items:center;margin-top:10px;' : 'display:none;margin-top:10px;'}">
                         <img id="adminGrowthPreviewImg" src="" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">
-                        <span id="adminGrowthFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;"></span>
+                        <span id="adminGrowthFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;">${editing?.image ? (currentLang === 'zh' ? '当前图片' : 'Current image') : ''}</span>
                     </div>
-                    <input type="hidden" id="adminGrowthImage" value="">
-                    <button onclick="addGrowth()" style="margin-top:15px;"><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加' : 'Add'}</button>
+                    <input type="hidden" id="adminGrowthImage" value="${editing?.image || ''}">
+                    <div class="admin-form-row" style="margin-top:15px;">
+                        <button onclick="saveGrowth()" style="flex:1;"><i class="fas fa-save"></i> ${currentLang === 'zh' ? '保存' : 'Save'}</button>
+                        ${isEdit ? `<button onclick="resetGrowthForm()" type="button" style="flex:1;background:var(--dark-light);border:1px solid var(--border);color:var(--text);"><i class="fas fa-times"></i> ${currentLang === 'zh' ? '取消编辑' : 'Cancel'}</button>` : ''}
+                    </div>
                 </div>
                 <div class="admin-list">
                     ${appData.growthRecords.map(g => `
@@ -4429,38 +4594,49 @@
                                 <p>${g.height}cm / ${g.weight}kg | ${g.note}</p>
                             </div>
                             <div class="admin-item-actions">
+                                <button onclick="editGrowth(${g.id})"><i class="fas fa-pen"></i></button>
                                 <button onclick="deleteGrowth(${g.id})"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     `).join('')}
                 </div>
             `;
+            if (editing?.image) {
+                const img = section.querySelector('#adminGrowthPreviewImg');
+                if (img) img.src = editing.image;
+            }
             hydrateIdbImages(section);
         }
 
         function renderAdminHonors() {
             const section = document.getElementById('admin-honors');
+            const editing = editingHonorId ? (appData.honors.find((h) => h.id === editingHonorId) || null) : null;
+            const isEdit = !!editing;
             section.innerHTML = `
                 <div class="admin-form">
-                    <h4><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加荣誉' : 'Add Honor'}</h4>
+                    <h4><i class="fas ${isEdit ? 'fa-pen' : 'fa-plus'}"></i> ${isEdit ? (currentLang === 'zh' ? '编辑荣誉' : 'Edit Honor') : (currentLang === 'zh' ? '添加荣誉' : 'Add Honor')}</h4>
                     <div class="admin-form-row">
-                        <input type="text" id="adminHonorIcon" placeholder="${currentLang === 'zh' ? '图标' : 'Icon'} (🏆)">
-                        <input type="text" id="adminHonorTitle" placeholder="${currentLang === 'zh' ? '标题' : 'Title'}">
-                        <input type="text" id="adminHonorAward" placeholder="${currentLang === 'zh' ? '奖项' : 'Award'}">
+                        <input type="hidden" id="adminHonorId" value="${editing?.id || ''}">
+                        <input type="text" id="adminHonorIcon" placeholder="${currentLang === 'zh' ? '图标' : 'Icon'} (🏆)" value="${editing?.icon || ''}">
+                        <input type="text" id="adminHonorTitle" placeholder="${currentLang === 'zh' ? '标题' : 'Title'}" value="${editing?.title || ''}">
+                        <input type="text" id="adminHonorAward" placeholder="${currentLang === 'zh' ? '奖项' : 'Award'}" value="${editing?.award || ''}">
                     </div>
                     <div class="admin-form-row">
-                        <input type="date" id="adminHonorDate">
+                        <input type="date" id="adminHonorDate" value="${editing?.date || ''}">
                         <label class="file-upload-label">
                             <i class="fas fa-upload"></i> ${currentLang === 'zh' ? '上传图片' : 'Upload Image'}
                             <input type="file" id="adminHonorImageFile" accept="image/*" style="display:none" onchange="handleAdminHonorImageUpload(event)">
                         </label>
                     </div>
-                    <div id="adminHonorPreview" class="music-upload-preview" style="display:none;margin-top:10px;">
+                    <div id="adminHonorPreview" class="music-upload-preview" style="${editing?.image ? 'display:flex;align-items:center;margin-top:10px;' : 'display:none;margin-top:10px;'}">
                         <img id="adminHonorPreviewImg" src="" style="width:120px;height:80px;object-fit:cover;border-radius:8px;">
-                        <span id="adminHonorFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;"></span>
+                        <span id="adminHonorFileName" style="color:var(--text-muted);font-size:0.85rem;margin-left:10px;">${editing?.image ? (currentLang === 'zh' ? '当前图片' : 'Current image') : ''}</span>
                     </div>
-                    <input type="hidden" id="adminHonorImage" value="">
-                    <button onclick="addHonor()" style="margin-top:15px;"><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加' : 'Add'}</button>
+                    <input type="hidden" id="adminHonorImage" value="${editing?.image || ''}">
+                    <div class="admin-form-row" style="margin-top:15px;">
+                        <button onclick="saveHonor()" style="flex:1;"><i class="fas fa-save"></i> ${currentLang === 'zh' ? '保存' : 'Save'}</button>
+                        ${isEdit ? `<button onclick="resetHonorForm()" type="button" style="flex:1;background:var(--dark-light);border:1px solid var(--border);color:var(--text);"><i class="fas fa-times"></i> ${currentLang === 'zh' ? '取消编辑' : 'Cancel'}</button>` : ''}
+                    </div>
                 </div>
                 <div class="admin-list">
                     ${appData.honors.map(h => `
@@ -4471,12 +4647,17 @@
                                 <p>${h.award} | ${h.date}</p>
                             </div>
                             <div class="admin-item-actions">
+                                <button onclick="editHonor(${h.id})"><i class="fas fa-pen"></i></button>
                                 <button onclick="deleteHonor(${h.id})"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     `).join('')}
                 </div>
             `;
+            if (editing?.image) {
+                const img = section.querySelector('#adminHonorPreviewImg');
+                if (img) img.src = editing.image;
+            }
             hydrateIdbImages(section);
         }
 
@@ -4560,12 +4741,19 @@
         function renderAdminWishes() {
             const section = document.getElementById('admin-wishes');
             if (!section) return;
+            const editing = editingWishId ? (appData.wishes.find((w) => w.id === editingWishId) || null) : null;
+            const isEdit = !!editing;
             section.innerHTML = `
                 <div class="admin-form">
                     <h4><i class="fas fa-star"></i> ${currentLang === 'zh' ? '管理愿望清单' : 'Manage Wishes'}</h4>
                     <div class="admin-form-row">
-                        <input type="text" id="adminWishInput" data-i18n-placeholder="wishes.placeholder" placeholder="${currentLang === 'zh' ? '添加新的愿望...' : 'Add a new wish...'}">
-                        <button onclick="addWish()"><i class="fas fa-plus"></i> ${currentLang === 'zh' ? '添加' : 'Add'}</button>
+                        <input type="hidden" id="adminWishId" value="${editing?.id || ''}">
+                        <input type="text" id="adminWishInput" data-i18n-placeholder="wishes.placeholder" placeholder="${currentLang === 'zh' ? '添加新的愿望...' : 'Add a new wish...'}" value="${editing?.title || ''}">
+                        <input type="month" id="adminWishDate" value="${editing?.date || ''}">
+                    </div>
+                    <div class="admin-form-row">
+                        <button onclick="saveWish()" style="flex:1;"><i class="fas fa-save"></i> ${currentLang === 'zh' ? '保存' : 'Save'}</button>
+                        ${isEdit ? `<button onclick="resetWishForm()" type="button" style="flex:1;background:var(--dark-light);border:1px solid var(--border);color:var(--text);"><i class="fas fa-times"></i> ${currentLang === 'zh' ? '取消编辑' : 'Cancel'}</button>` : ''}
                     </div>
                 </div>
                 <div class="admin-list">
@@ -4576,6 +4764,7 @@
                                 <p>${w.date} ${w.completed ? (currentLang === 'zh' ? '｜已完成' : '| Completed') : ''}</p>
                             </div>
                             <div class="admin-item-actions">
+                                <button onclick="editWish(${w.id})"><i class="fas fa-pen"></i></button>
                                 <button onclick="toggleWish(${w.id})"><i class="fas ${w.completed ? 'fa-undo' : 'fa-check'}"></i></button>
                                 <button class="delete" onclick="deleteWish(${w.id})"><i class="fas fa-trash"></i></button>
                             </div>
@@ -4826,6 +5015,34 @@
             document.getElementById('adminLoginClose').addEventListener('click', closeAdmin);
             document.getElementById('adminLoginCancel').addEventListener('click', closeAdmin);
             document.getElementById('adminLoginSubmit').addEventListener('click', verifyAdminPassword);
+            const exportDataBtn = document.getElementById('exportDataBtn');
+            if (exportDataBtn) exportDataBtn.addEventListener('click', exportDataJson);
+            const clearDraftBtn = document.getElementById('clearDraftBtn');
+            if (clearDraftBtn) clearDraftBtn.addEventListener('click', clearDraftAndReload);
+            const importDataBtn = document.getElementById('importDataBtn');
+            const importDataFile = document.getElementById('importDataFile');
+            if (importDataBtn && importDataFile) {
+                importDataBtn.addEventListener('click', () => importDataFile.click());
+                importDataFile.addEventListener('change', () => {
+                    const file = importDataFile.files && importDataFile.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const json = JSON.parse(String(reader.result || '{}'));
+                            appData = normalizeAppData(json || {});
+                            saveData();
+                            rerenderAll();
+                            showToast(currentLang === 'zh' ? '已导入并作为本机草稿预览' : 'Imported as local draft');
+                        } catch (e) {
+                            showToast(currentLang === 'zh' ? '导入失败：不是有效的 JSON' : 'Import failed: invalid JSON');
+                        } finally {
+                            importDataFile.value = '';
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            }
             document.getElementById('adminOverlay').addEventListener('click', (e) => {
                 if (e.target.id === 'adminOverlay') closeAdmin();
             });
@@ -5159,9 +5376,10 @@
         function toggleWish(id) {
             const wish = appData.wishes.find(w => w.id === id);
             wish.completed = !wish.completed;
-            saveData();
+            const ok = saveData();
             renderWishes();
             renderAdminWishes();
+            if (ok) showToast(currentLang === 'zh' ? '已保存' : 'Saved');
         }
 
         function deleteWish(id) {
@@ -5169,23 +5387,47 @@
             saveData();
             renderWishes();
             renderAdminWishes();
+            if (editingWishId === id) editingWishId = 0;
             showToast(currentLang === 'zh' ? '已删除' : 'Deleted');
         }
 
-        function addWish() {
+        function resetWishForm() {
+            editingWishId = 0;
+            renderAdminWishes();
+        }
+
+        function editWish(id) {
+            editingWishId = id;
+            renderAdminWishes();
+        }
+
+        function saveWish() {
             const input = document.getElementById('adminWishInput');
+            const dateInput = document.getElementById('adminWishDate');
             if (!input) return;
             const title = input.value.trim();
-            if (!title) return;
+            if (!title) {
+                showToast(currentLang === 'zh' ? '请填写愿望内容' : 'Please fill wish content');
+                return;
+            }
             const now = new Date();
-            const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            appData.wishes.unshift({ id: Date.now(), title, date, completed: false });
-            saveData();
+            const date = (dateInput?.value || '').trim() || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            if (editingWishId) {
+                const wish = appData.wishes.find((w) => w.id === editingWishId);
+                if (!wish) { showToast(currentLang === 'zh' ? '愿望不存在' : 'Wish not found'); return; }
+                wish.title = title;
+                wish.date = date;
+            } else {
+                appData.wishes.unshift({ id: Date.now(), title, date, completed: false });
+            }
+            const ok = saveData();
             renderWishes();
             renderAdminWishes();
-            input.value = '';
-            showToast(currentLang === 'zh' ? '已添加' : 'Added');
+            editingWishId = 0;
+            if (ok) showToast(currentLang === 'zh' ? '已保存' : 'Saved');
         }
+
+        function addWish() { saveWish(); }
 
         function addPublicMessage() {
             const authorInput = document.getElementById('publicMessageAuthor');
@@ -5330,21 +5572,45 @@
             showToast(currentLang === 'zh' ? '已删除' : 'Deleted');
         }
 
-        function addPhoto() {
+        function resetPhotoForm() {
+            editingPhotoId = 0;
+            renderAdminPhotos();
+        }
+
+        function editPhoto(id) {
+            editingPhotoId = id;
+            renderAdminPhotos();
+        }
+
+        function savePhoto() {
             const title = document.getElementById('adminPhotoTitle').value.trim();
             const date = document.getElementById('adminPhotoDate').value.trim();
             const category = document.getElementById('adminPhotoCategory').value.trim();
             const desc = document.getElementById('adminPhotoDesc').value.trim();
-            const image = document.getElementById('adminPhotoImage').value.trim();
+            const imageUrl = document.getElementById('adminPhotoImageUrl')?.value.trim() || '';
+            const image = imageUrl || document.getElementById('adminPhotoImage').value.trim();
             if (!title || !image) { showToast(currentLang === 'zh' ? '请填写标题和图片' : 'Please fill title and image'); return; }
-            appData.photos.push({ id: Date.now(), title, date: date || '', category: category || 'daily', desc: desc || '', image });
-            saveData();
+            if (editingPhotoId) {
+                const photo = appData.photos.find((p) => p.id === editingPhotoId);
+                if (!photo) { showToast(currentLang === 'zh' ? '照片不存在' : 'Photo not found'); return; }
+                photo.title = title;
+                photo.date = date || '';
+                photo.category = category || 'daily';
+                photo.desc = desc || '';
+                photo.image = image;
+            } else {
+                appData.photos.push({ id: Date.now(), title, date: date || '', category: category || 'daily', desc: desc || '', image });
+            }
+            const ok = saveData();
             renderPhotos();
             renderFilterBar();
             renderAdminPhotos();
             updateStats();
-            showToast(currentLang === 'zh' ? '已添加' : 'Added');
+            editingPhotoId = 0;
+            if (ok) showToast(currentLang === 'zh' ? '已保存' : 'Saved');
         }
+
+        function addPhoto() { savePhoto(); }
 
         function deletePhoto(id) {
             appData.photos = appData.photos.filter(p => p.id !== id);
@@ -5356,18 +5622,39 @@
             showToast(currentLang === 'zh' ? '已删除' : 'Deleted');
         }
 
-        function addVideo() {
+        function resetVideoForm() {
+            editingVideoId = 0;
+            renderAdminVideos();
+        }
+
+        function editVideo(id) {
+            editingVideoId = id;
+            renderAdminVideos();
+        }
+
+        function saveVideo() {
             const title = document.getElementById('adminVideoTitle').value.trim();
             const date = document.getElementById('adminVideoDate').value.trim();
             const thumbnail = document.getElementById('adminVideoThumb').value.trim();
             if (!title || !thumbnail) { showToast(currentLang === 'zh' ? '请填写标题和缩略图' : 'Please fill title and thumbnail'); return; }
-            appData.videos.push({ id: Date.now(), title, date: date || '', thumbnail });
-            saveData();
+            if (editingVideoId) {
+                const video = appData.videos.find((v) => v.id === editingVideoId);
+                if (!video) { showToast(currentLang === 'zh' ? '视频不存在' : 'Video not found'); return; }
+                video.title = title;
+                video.date = date || '';
+                video.thumbnail = thumbnail;
+            } else {
+                appData.videos.push({ id: Date.now(), title, date: date || '', thumbnail });
+            }
+            const ok = saveData();
             renderVideos();
             renderAdminVideos();
             updateStats();
-            showToast(currentLang === 'zh' ? '已添加' : 'Added');
+            editingVideoId = 0;
+            if (ok) showToast(currentLang === 'zh' ? '已保存' : 'Saved');
         }
+
+        function addVideo() { saveVideo(); }
 
         function deleteVideo(id) {
             appData.videos = appData.videos.filter(v => v.id !== id);
@@ -5378,17 +5665,38 @@
             showToast(currentLang === 'zh' ? '已删除' : 'Deleted');
         }
 
-        function addMilestone() {
+        function resetMilestoneForm() {
+            editingMilestoneId = 0;
+            renderAdminMilestones();
+        }
+
+        function editMilestone(id) {
+            editingMilestoneId = id;
+            renderAdminMilestones();
+        }
+
+        function saveMilestone() {
             const icon = document.getElementById('adminMilestoneIcon').value.trim();
             const title = document.getElementById('adminMilestoneTitle').value.trim();
             const age = document.getElementById('adminMilestoneAge').value.trim();
             if (!title) { showToast(currentLang === 'zh' ? '请填写标题' : 'Please fill title'); return; }
-            appData.milestones.push({ id: Date.now(), icon: icon || '⭐', title, age: age || '' });
-            saveData();
+            if (editingMilestoneId) {
+                const milestone = appData.milestones.find((m) => m.id === editingMilestoneId);
+                if (!milestone) { showToast(currentLang === 'zh' ? '里程碑不存在' : 'Milestone not found'); return; }
+                milestone.icon = icon || '⭐';
+                milestone.title = title;
+                milestone.age = age || '';
+            } else {
+                appData.milestones.push({ id: Date.now(), icon: icon || '⭐', title, age: age || '' });
+            }
+            const ok = saveData();
             renderMilestones();
             renderAdminMilestones();
-            showToast(currentLang === 'zh' ? '已添加' : 'Added');
+            editingMilestoneId = 0;
+            if (ok) showToast(currentLang === 'zh' ? '已保存' : 'Saved');
         }
+
+        function addMilestone() { saveMilestone(); }
 
         function deleteMilestone(id) {
             appData.milestones = appData.milestones.filter(m => m.id !== id);
@@ -5398,7 +5706,17 @@
             showToast(currentLang === 'zh' ? '已删除' : 'Deleted');
         }
 
-        function addGrowth() {
+        function resetGrowthForm() {
+            editingGrowthId = 0;
+            renderAdminGrowth();
+        }
+
+        function editGrowth(id) {
+            editingGrowthId = id;
+            renderAdminGrowth();
+        }
+
+        function saveGrowth() {
             const date = document.getElementById('adminGrowthDate').value.trim();
             const height = document.getElementById('adminGrowthHeight').value.trim();
             const weight = document.getElementById('adminGrowthWeight').value.trim();
@@ -5406,12 +5724,25 @@
             const image = document.getElementById('adminGrowthImage').value.trim();
             if (!date) { showToast(currentLang === 'zh' ? '请选择日期（年月日）' : 'Please select a date (YYYY-MM-DD)'); return; }
             if (!height || !weight) { showToast(currentLang === 'zh' ? '请填写身高和体重' : 'Please fill height and weight'); return; }
-            appData.growthRecords.push({ id: Date.now(), date: date || '', height, weight, note: note || '', image: image || 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' });
-            saveData();
+            if (editingGrowthId) {
+                const growth = appData.growthRecords.find((g) => g.id === editingGrowthId);
+                if (!growth) { showToast(currentLang === 'zh' ? '成长记录不存在' : 'Growth record not found'); return; }
+                growth.date = date || '';
+                growth.height = height;
+                growth.weight = weight;
+                growth.note = note || '';
+                growth.image = image || growth.image || 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop';
+            } else {
+                appData.growthRecords.push({ id: Date.now(), date: date || '', height, weight, note: note || '', image: image || 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop' });
+            }
+            const ok = saveData();
             renderGrowth();
             renderAdminGrowth();
-            showToast(currentLang === 'zh' ? '已添加' : 'Added');
+            editingGrowthId = 0;
+            if (ok) showToast(currentLang === 'zh' ? '已保存' : 'Saved');
         }
+
+        function addGrowth() { saveGrowth(); }
 
         function deleteGrowth(id) {
             appData.growthRecords = appData.growthRecords.filter(g => g.id !== id);
@@ -5421,19 +5752,42 @@
             showToast(currentLang === 'zh' ? '已删除' : 'Deleted');
         }
 
-        function addHonor() {
+        function resetHonorForm() {
+            editingHonorId = 0;
+            renderAdminHonors();
+        }
+
+        function editHonor(id) {
+            editingHonorId = id;
+            renderAdminHonors();
+        }
+
+        function saveHonor() {
             const icon = document.getElementById('adminHonorIcon').value.trim();
             const title = document.getElementById('adminHonorTitle').value.trim();
             const award = document.getElementById('adminHonorAward').value.trim();
             const date = document.getElementById('adminHonorDate').value.trim();
             const image = document.getElementById('adminHonorImage').value.trim();
             if (!title) { showToast(currentLang === 'zh' ? '请填写标题' : 'Please fill title'); return; }
-            appData.honors.push({ id: Date.now(), icon: icon || '🏆', title, award: award || '', date: date || '', image: image || '' });
-            saveData();
+            if (editingHonorId) {
+                const honor = appData.honors.find((h) => h.id === editingHonorId);
+                if (!honor) { showToast(currentLang === 'zh' ? '荣誉不存在' : 'Honor not found'); return; }
+                honor.icon = icon || '🏆';
+                honor.title = title;
+                honor.award = award || '';
+                honor.date = date || '';
+                honor.image = image || '';
+            } else {
+                appData.honors.push({ id: Date.now(), icon: icon || '🏆', title, award: award || '', date: date || '', image: image || '' });
+            }
+            const ok = saveData();
             renderHonors();
             renderAdminHonors();
-            showToast(currentLang === 'zh' ? '已添加' : 'Added');
+            editingHonorId = 0;
+            if (ok) showToast(currentLang === 'zh' ? '已保存' : 'Saved');
         }
+
+        function addHonor() { saveHonor(); }
 
         function deleteHonor(id) {
             appData.honors = appData.honors.filter(h => h.id !== id);
@@ -6697,9 +7051,16 @@
             });
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             if (ensureWeChatFreshUrl()) return;
             if (isAdminDisabledOnMobile()) document.body.classList.add('admin-disabled');
+            const repoData = await loadRepoAppData();
+            appData = normalizeAppData(repoData || {});
+            const draftData = loadDraftAppData();
+            if (draftData) {
+                appData = normalizeAppData(draftData || {});
+                showToast(currentLang === 'zh' ? '已加载本机草稿（未发布）' : 'Loaded local draft (not published)');
+            }
             init();
             initWeather();
             initWeatherEffects();
